@@ -2,7 +2,7 @@ blueprint:
   name: KNX - Cover control
   description: |
     Use KNX to control a Home Assistant cover entity with specified group addresses for open, close, stop, and position commands. Optionally invert the position value.
-    **Version**: 2024.01.2
+    **Version**: 2024.01.3
   author: kalhimeo
   domain: automation
   input:
@@ -12,13 +12,9 @@ blueprint:
       selector:
         entity:
           domain: cover
-    open_address:
-      name: Open group address
-      description: Group address for opening the cover. DPT 1.001
-      default: ""
-    close_address:
-      name: Close group address
-      description: Group address for closing the cover. DPT 1.001
+    open_close_address:
+      name: Open/Close group address
+      description: Group address for opening and closing the cover. DPT 1.001
       default: ""
     stop_address:
       name: Stop group address
@@ -44,8 +40,7 @@ max_exceeded: silent
 
 variables:
   cover_entity: !input cover_entity
-  open_address: !input open_address
-  close_address: !input close_address
+  open_close_address: !input open_close_address
   stop_address: !input stop_address
   position_address: !input position_address
   position_state_address: !input position_state_address
@@ -83,18 +78,11 @@ action:
       sequence:
         - if:
             - condition: template
-              value_template: "{{ open_address != '' }}"
+              value_template: "{{ open_close_address != '' }}"
           then:
             - service: knx.event_register
               data:
-                address: "{{ open_address }}"
-        - if:
-            - condition: template
-              value_template: "{{ close_address != '' }}"
-          then:
-            - service: knx.event_register
-              data:
-                address: "{{ close_address }}"
+                address: "{{ open_close_address }}"
         - if:
             - condition: template
               value_template: "{{ stop_address != '' }}"
@@ -123,22 +111,26 @@ action:
           value_template: "{{ trigger is defined and trigger.platform == 'event' and trigger.event.event_type == 'knx_event' and trigger.event.data.direction == 'Incoming' and trigger.event.data.destination != '' }}"
       sequence:
         - choose:
-          # OPEN
+          # OPEN/CLOSE
           - conditions:
               - condition: template
-                value_template: "{{ trigger.event.data.destination == open_address }}"
+                value_template: "{{ trigger.event.data.destination == open_close_address }}"
             sequence:
-              - service: cover.open_cover
-                target:
-                  entity_id: "{{ cover_entity }}"
-          # CLOSE
-          - conditions:
-              - condition: template
-                value_template: "{{ trigger.event.data.destination == close_address }}"
-            sequence:
-              - service: cover.close_cover
-                target:
-                  entity_id: "{{ cover_entity }}"
+              - choose:
+                - conditions:
+                    - condition: template
+                      value_template: "{{ trigger.event.data.data == 1 }}"
+                  sequence:
+                    - service: cover.open_cover
+                      target:
+                        entity_id: "{{ cover_entity }}"
+                - conditions:
+                    - condition: template
+                      value_template: "{{ trigger.event.data.data == 0 }}"
+                  sequence:
+                    - service: cover.close_cover
+                      target:
+                        entity_id: "{{ cover_entity }}"
           # STOP
           - conditions:
               - condition: template
