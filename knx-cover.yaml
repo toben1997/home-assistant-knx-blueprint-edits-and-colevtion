@@ -1,8 +1,8 @@
 blueprint:
-  name: KNX - Cover entities control
+  name: KNX - Cover entities control with single group address
   description: |
-    Use KNX to control a Home Assistant cover entity with optional state feedback
-    **Version**: 2024.01.1
+    Use KNX to control a Home Assistant cover entity with a single group address for both open and close commands, and optional state feedback
+    **Version**: 2024.01.2
   author: kalhimeo
   source_url: https://gist.github.com/kalhimeo/88f6e38b45aa872961cc7b748eacef3d
   domain: automation
@@ -14,23 +14,16 @@ blueprint:
       selector:
         entity:
           domain: cover
-    cover_open_address:
-      name: Cover open group address
+    cover_control_address:
+      name: Cover control group address
       description: >
-        Group address for opening the cover. DPT 1.001
-        Example: '1/0/1' (leave empty if unused)
-      default: ""
-    cover_close_address:
-      name: Cover close group address
-      description: >
-        Group address for closing the cover. DPT 1.001
-        Example: '1/0/2' (leave empty if unused)
-      default: ""
+        Group address for opening and closing the cover. DPT 1.008 (up/down)
+        Example: '1/0/1'
     cover_stop_address:
       name: Cover stop group address
       description: >
         Group address for stopping the cover. DPT 1.001
-        Example: '1/0/3' (leave empty if unused)
+        Example: '1/0/2' (leave empty if unused)
       default: ""
     cover_position_address:
       name: Cover position group address
@@ -50,8 +43,7 @@ max_exceeded: silent
 
 variables:
   cover_entity: !input cover_entity
-  cover_open_address: !input cover_open_address
-  cover_close_address: !input cover_close_address
+  cover_control_address: !input cover_control_address
   cover_stop_address: !input cover_stop_address
   cover_position_address: !input cover_position_address
   cover_position_state_address: !input cover_position_state_address
@@ -88,18 +80,11 @@ action:
       sequence:
         - if:
             - condition: template
-              value_template: "{{ cover_open_address != '' }}"
+              value_template: "{{ cover_control_address != '' }}"
           then:
             - service: knx.event_register
               data:
-                address: "{{ cover_open_address }}"
-        - if:
-            - condition: template
-              value_template: "{{ cover_close_address != '' }}"
-          then:
-            - service: knx.event_register
-              data:
-                address: "{{ cover_close_address }}"
+                address: "{{ cover_control_address }}"
         - if:
             - condition: template
               value_template: "{{ cover_stop_address != '' }}"
@@ -128,22 +113,26 @@ action:
           value_template: "{{ trigger is defined and trigger.platform == 'event' and trigger.event.event_type == 'knx_event' and trigger.event.data.direction == 'Incoming' and trigger.event.data.destination != '' }}"
       sequence:
         - choose:
-          # OPEN command
+          # CONTROL (OPEN/CLOSE) command
           - conditions:
               - condition: template
-                value_template: "{{ trigger.event.data.destination == cover_open_address }}"
+                value_template: "{{ trigger.event.data.destination == cover_control_address }}"
             sequence:
-              - service: cover.open_cover
-                target:
-                  entity_id: "{{ cover_entity }}"
-          # CLOSE command
-          - conditions:
-              - condition: template
-                value_template: "{{ trigger.event.data.destination == cover_close_address }}"
-            sequence:
-              - service: cover.close_cover
-                target:
-                  entity_id: "{{ cover_entity }}"
+              - choose:
+                - conditions:
+                    - condition: template
+                      value_template: "{{ trigger.event.data.data == 1 }}"
+                  sequence:
+                    - service: cover.open_cover
+                      target:
+                        entity_id: "{{ cover_entity }}"
+                - conditions:
+                    - condition: template
+                      value_template: "{{ trigger.event.data.data == 0 }}"
+                  sequence:
+                    - service: cover.close_cover
+                      target:
+                        entity_id: "{{ cover_entity }}"
           # STOP command
           - conditions:
               - condition: template
