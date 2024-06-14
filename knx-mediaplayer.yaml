@@ -1,8 +1,8 @@
 blueprint:
-  name: KNX - Media Player control
+  name: KNX - Media Player control with source selection
   description: |
-    Use KNX to control a Home Assistant media player entity with specified group addresses. Optionally invert the next/previous song commands.
-    **Version**: 2024.01.3
+    Use KNX to control a Home Assistant media player entity with specified group addresses. Optionally invert the next/previous song commands and configure source selection.
+    **Version**: 2024.01.4
   author: kalhimeo
   domain: automation
   input:
@@ -42,16 +42,25 @@ blueprint:
       default: ""
     source_address:
       name: Source group address
-      description: Group address for source selection. DPT 1.001
+      description: Group address for source selection. DPT 5.001 (1 byte)
       default: ""
     source_feedback_address:
       name: Source Feedback group address
-      description: Group address for sending source feedback. DPT 1.001
+      description: Group address for sending source feedback. DPT 5.001
       default: ""
     volume_step_address:
       name: Volume Step group address
       description: Group address for volume up/down control. DPT 1.001
       default: ""
+    number_of_sources:
+      name: Number of Sources
+      description: Specify the number of available sources.
+      default: 3
+      selector:
+        number:
+          min: 1
+          max: 255
+          step: 1
     invert_next_prev:
       name: Invert Next/Previous
       description: Invert the next and previous song commands.
@@ -74,6 +83,7 @@ variables:
   source_address: !input source_address
   source_feedback_address: !input source_feedback_address
   volume_step_address: !input volume_step_address
+  number_of_sources: !input number_of_sources
   invert_next_prev: !input invert_next_prev
 
 trigger:
@@ -259,7 +269,13 @@ action:
               - service: media_player.select_source
                 data:
                   entity_id: "{{ media_player_entity }}"
-                  source: "{{ trigger.event.data.data }}"
+                  source: >
+                    {% set source_map = {
+                      1: "Source 1",
+                      2: "Source 2",
+                      3: "Source 3"
+                    } %}
+                    {{ source_map[trigger.event.data.data] if trigger.event.data.data in source_map else "Unknown Source" }}
           # VOLUME STEP
           - conditions:
               - condition: template
@@ -281,10 +297,10 @@ action:
                       target:
                         entity_id: "{{ media_player_entity }}"
 
-    # STATE FEEDBACK
+    # MEDIA PLAYER STATE CHANGES
     - conditions:
-        - condition: trigger
-          id: "media_player_entity"
+        - condition: template
+          value_template: "{{ trigger is defined and trigger.platform == 'state' and trigger.entity_id == media_player_entity }}"
       sequence:
         - choose:
           # VOLUME FEEDBACK
