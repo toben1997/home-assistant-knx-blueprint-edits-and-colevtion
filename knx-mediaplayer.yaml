@@ -2,7 +2,7 @@ blueprint:
   name: KNX - Media Player control with source selection
   description: |
     Use KNX to control a Home Assistant media player entity with specified group addresses. Optionally invert the next/previous song commands and configure source selection.
-    **Version**: 2024.01.4
+    **Version**: 2024.01.5
   author: kalhimeo
   domain: automation
   input:
@@ -52,15 +52,71 @@ blueprint:
       name: Volume Step group address
       description: Group address for volume up/down control. DPT 1.001
       default: ""
-    number_of_sources:
-      name: Number of Sources
-      description: Specify the number of available sources.
+    source_1_knx_value:
+      name: Source 1 KNX Value
+      description: KNX value for selecting source 1.
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 255
+          step: 1
+    source_1_name:
+      name: Source 1 Name
+      description: Media player source name for source 1.
+      default: "Source 1"
+    source_2_knx_value:
+      name: Source 2 KNX Value
+      description: KNX value for selecting source 2.
+      default: 2
+      selector:
+        number:
+          min: 1
+          max: 255
+          step: 1
+    source_2_name:
+      name: Source 2 Name
+      description: Media player source name for source 2.
+      default: "Source 2"
+    source_3_knx_value:
+      name: Source 3 KNX Value
+      description: KNX value for selecting source 3.
       default: 3
       selector:
         number:
           min: 1
           max: 255
           step: 1
+    source_3_name:
+      name: Source 3 Name
+      description: Media player source name for source 3.
+      default: "Source 3"
+    source_4_knx_value:
+      name: Source 4 KNX Value
+      description: KNX value for selecting source 4.
+      default: 4
+      selector:
+        number:
+          min: 1
+          max: 255
+          step: 1
+    source_4_name:
+      name: Source 4 Name
+      description: Media player source name for source 4.
+      default: "Source 4"
+    source_5_knx_value:
+      name: Source 5 KNX Value
+      description: KNX value for selecting source 5.
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 255
+          step: 1
+    source_5_name:
+      name: Source 5 Name
+      description: Media player source name for source 5.
+      default: "Source 5"
     invert_next_prev:
       name: Invert Next/Previous
       description: Invert the next and previous song commands.
@@ -83,7 +139,16 @@ variables:
   source_address: !input source_address
   source_feedback_address: !input source_feedback_address
   volume_step_address: !input volume_step_address
-  number_of_sources: !input number_of_sources
+  source_1_knx_value: !input source_1_knx_value
+  source_1_name: !input source_1_name
+  source_2_knx_value: !input source_2_knx_value
+  source_2_name: !input source_2_name
+  source_3_knx_value: !input source_3_knx_value
+  source_3_name: !input source_3_name
+  source_4_knx_value: !input source_4_knx_value
+  source_4_name: !input source_4_name
+  source_5_knx_value: !input source_5_knx_value
+  source_5_name: !input source_5_name
   invert_next_prev: !input invert_next_prev
 
 trigger:
@@ -203,18 +268,6 @@ action:
                     - condition: template
                       value_template: >
                         {% if invert_next_prev %}
-                          {{ trigger.event.data.data == 0 }}
-                        {% else %}
-                          {{ trigger.event.data.data == 1 }}
-                        {% endif %}
-                  sequence:
-                    - service: media_player.media_next_track
-                      target:
-                        entity_id: "{{ media_player_entity }}"
-                - conditions:
-                    - condition: template
-                      value_template: >
-                        {% if invert_next_prev %}
                           {{ trigger.event.data.data == 1 }}
                         {% else %}
                           {{ trigger.event.data.data == 0 }}
@@ -223,59 +276,97 @@ action:
                     - service: media_player.media_previous_track
                       target:
                         entity_id: "{{ media_player_entity }}"
+                - conditions:
+                    - condition: template
+                      value_template: >
+                        {% if invert_next_prev %}
+                          {{ trigger.event.data.data == 0 }}
+                        {% else %}
+                          {{ trigger.event.data.data == 1 }}
+                        {% endif %}
+                  sequence:
+                    - service: media_player.media_next_track
+                      target:
+                        entity_id: "{{ media_player_entity }}"
           # VOLUME VALUE
           - conditions:
               - condition: template
                 value_template: "{{ trigger.event.data.destination == volume_value_address }}"
             sequence:
               - service: media_player.volume_set
-                data:
+                target:
                   entity_id: "{{ media_player_entity }}"
+                data:
                   volume_level: "{{ trigger.event.data.data / 100 }}"
           # PLAY/PAUSE
           - conditions:
               - condition: template
                 value_template: "{{ trigger.event.data.destination == play_pause_address }}"
             sequence:
-              - choose:
-                - conditions:
-                    - condition: template
-                      value_template: "{{ trigger.event.data.data == 1 }}"
-                  sequence:
-                    - service: media_player.media_play
-                      target:
-                        entity_id: "{{ media_player_entity }}"
-                - conditions:
-                    - condition: template
-                      value_template: "{{ trigger.event.data.data == 0 }}"
-                  sequence:
-                    - service: media_player.media_pause
-                      target:
-                        entity_id: "{{ media_player_entity }}"
+              - service: media_player.media_play_pause
+                target:
+                  entity_id: "{{ media_player_entity }}"
           # MUTE
           - conditions:
               - condition: template
                 value_template: "{{ trigger.event.data.destination == mute_address }}"
             sequence:
               - service: media_player.volume_mute
-                data:
+                target:
                   entity_id: "{{ media_player_entity }}"
+                data:
                   is_volume_muted: "{{ trigger.event.data.data == 1 }}"
           # SOURCE SELECTION
           - conditions:
               - condition: template
                 value_template: "{{ trigger.event.data.destination == source_address }}"
             sequence:
-              - service: media_player.select_source
-                data:
-                  entity_id: "{{ media_player_entity }}"
-                  source: >
-                    {% set source_map = {
-                      1: "Source 1",
-                      2: "Source 2",
-                      3: "Source 3"
-                    } %}
-                    {{ source_map[trigger.event.data.data] if trigger.event.data.data in source_map else "Unknown Source" }}
+              - choose:
+                - conditions:
+                    - condition: template
+                      value_template: "{{ trigger.event.data.data == source_1_knx_value }}"
+                  sequence:
+                    - service: media_player.select_source
+                      target:
+                        entity_id: "{{ media_player_entity }}"
+                      data:
+                        source: "{{ source_1_name }}"
+                - conditions:
+                    - condition: template
+                      value_template: "{{ trigger.event.data.data == source_2_knx_value }}"
+                  sequence:
+                    - service: media_player.select_source
+                      target:
+                        entity_id: "{{ media_player_entity }}"
+                      data:
+                        source: "{{ source_2_name }}"
+                - conditions:
+                    - condition: template
+                      value_template: "{{ trigger.event.data.data == source_3_knx_value }}"
+                  sequence:
+                    - service: media_player.select_source
+                      target:
+                        entity_id: "{{ media_player_entity }}"
+                      data:
+                        source: "{{ source_3_name }}"
+                - conditions:
+                    - condition: template
+                      value_template: "{{ trigger.event.data.data == source_4_knx_value }}"
+                  sequence:
+                    - service: media_player.select_source
+                      target:
+                        entity_id: "{{ media_player_entity }}"
+                      data:
+                        source: "{{ source_4_name }}"
+                - conditions:
+                    - condition: template
+                      value_template: "{{ trigger.event.data.data == source_5_knx_value }}"
+                  sequence:
+                    - service: media_player.select_source
+                      target:
+                        entity_id: "{{ media_player_entity }}"
+                      data:
+                        source: "{{ source_5_name }}"
           # VOLUME STEP
           - conditions:
               - condition: template
@@ -341,5 +432,18 @@ action:
               - service: knx.send
                 data:
                   address: "{{ source_feedback_address }}"
-                  payload: "{{ state_attr(media_player_entity, 'source') }}"
-                  type: 'string'
+                  payload_template: >
+                    {% if state_attr(media_player_entity, 'source') == source_1_name %}
+                      {{ source_1_knx_value }}
+                    {% elif state_attr(media_player_entity, 'source') == source_2_name %}
+                      {{ source_2_knx_value }}
+                    {% elif state_attr(media_player_entity, 'source') == source_3_name %}
+                      {{ source_3_knx_value }}
+                    {% elif state_attr(media_player_entity, 'source') == source_4_name %}
+                      {{ source_4_knx_value }}
+                    {% elif state_attr(media_player_entity, 'source') == source_5_name %}
+                      {{ source_5_knx_value }}
+                    {% else %}
+                      0
+                    {% endif %}
+                  type: 'percent'
