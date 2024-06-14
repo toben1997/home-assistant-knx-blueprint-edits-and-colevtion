@@ -1,52 +1,55 @@
 blueprint:
-  name: KNX - Cover entities control with single group address
+  name: KNX - Cover control
   description: |
-    Use KNX to control a Home Assistant cover entity with a single group address for both open and close commands, and optional state feedback
+    Use KNX to control a Home Assistant cover entity with specified group addresses for open, close, stop, and position commands. Optionally invert the position value.
     **Version**: 2024.01.2
   author: kalhimeo
-  source_url: https://gist.github.com/kalhimeo/88f6e38b45aa872961cc7b748eacef3d
   domain: automation
   input:
     cover_entity:
       name: Cover Entity
-      description: >
-        Choose the cover to control and expose with KNX
+      description: Choose the cover to control and expose with KNX
       selector:
         entity:
           domain: cover
-    cover_control_address:
-      name: Cover control group address
-      description: >
-        Group address for opening and closing the cover. DPT 1.008 (up/down)
-        Example: '1/0/1'
-    cover_stop_address:
-      name: Cover stop group address
-      description: >
-        Group address for stopping the cover. DPT 1.001
-        Example: '1/0/2' (leave empty if unused)
+    open_address:
+      name: Open group address
+      description: Group address for opening the cover. DPT 1.001
       default: ""
-    cover_position_address:
-      name: Cover position group address
-      description: >
-        Group address for setting the cover position. DPT 5.001
-        Example: '1/1/1' (leave empty if unused)
+    close_address:
+      name: Close group address
+      description: Group address for closing the cover. DPT 1.001
       default: ""
-    cover_position_state_address:
-      name: Cover position state group address
-      description: >
-        Group address to send feedback of the cover position. DPT 5.001
-        Example: '1/4/1' (leave empty if unused)
+    stop_address:
+      name: Stop group address
+      description: Group address for stopping the cover. DPT 1.001
       default: ""
+    position_address:
+      name: Position control group address
+      description: Group address for setting the position of the cover. DPT 5.001
+      default: ""
+    position_state_address:
+      name: Position state group address
+      description: Group address to send feedback of the cover position. DPT 5.001
+      default: ""
+    invert_position:
+      name: Invert Position
+      description: Invert the position value (e.g., 0% becomes 100%)
+      default: false
+      selector:
+        boolean: {}
 
 mode: parallel
 max_exceeded: silent
 
 variables:
   cover_entity: !input cover_entity
-  cover_control_address: !input cover_control_address
-  cover_stop_address: !input cover_stop_address
-  cover_position_address: !input cover_position_address
-  cover_position_state_address: !input cover_position_state_address
+  open_address: !input open_address
+  close_address: !input close_address
+  stop_address: !input stop_address
+  position_address: !input position_address
+  position_state_address: !input position_state_address
+  invert_position: !input invert_position
 
 trigger:
   - platform: homeassistant
@@ -80,32 +83,39 @@ action:
       sequence:
         - if:
             - condition: template
-              value_template: "{{ cover_control_address != '' }}"
+              value_template: "{{ open_address != '' }}"
           then:
             - service: knx.event_register
               data:
-                address: "{{ cover_control_address }}"
+                address: "{{ open_address }}"
         - if:
             - condition: template
-              value_template: "{{ cover_stop_address != '' }}"
+              value_template: "{{ close_address != '' }}"
           then:
             - service: knx.event_register
               data:
-                address: "{{ cover_stop_address }}"
+                address: "{{ close_address }}"
         - if:
             - condition: template
-              value_template: "{{ cover_position_address != '' }}"
+              value_template: "{{ stop_address != '' }}"
           then:
             - service: knx.event_register
               data:
-                address: "{{ cover_position_address }}"
+                address: "{{ stop_address }}"
         - if:
             - condition: template
-              value_template: "{{ cover_position_state_address != '' }}"
+              value_template: "{{ position_address != '' }}"
           then:
             - service: knx.event_register
               data:
-                address: "{{ cover_position_state_address }}"
+                address: "{{ position_address }}"
+        - if:
+            - condition: template
+              value_template: "{{ position_state_address != '' }}"
+          then:
+            - service: knx.event_register
+              data:
+                address: "{{ position_state_address }}"
 
     # KNX TELEGRAMS
     - conditions:
@@ -113,53 +123,15 @@ action:
           value_template: "{{ trigger is defined and trigger.platform == 'event' and trigger.event.event_type == 'knx_event' and trigger.event.data.direction == 'Incoming' and trigger.event.data.destination != '' }}"
       sequence:
         - choose:
-          # CONTROL (OPEN/CLOSE) command
+          # OPEN
           - conditions:
               - condition: template
-                value_template: "{{ trigger.event.data.destination == cover_control_address }}"
+                value_template: "{{ trigger.event.data.destination == open_address }}"
             sequence:
-              - choose:
-                - conditions:
-                    - condition: template
-                      value_template: "{{ trigger.event.data.data == 1 }}"
-                  sequence:
-                    - service: cover.open_cover
-                      target:
-                        entity_id: "{{ cover_entity }}"
-                - conditions:
-                    - condition: template
-                      value_template: "{{ trigger.event.data.data == 0 }}"
-                  sequence:
-                    - service: cover.close_cover
-                      target:
-                        entity_id: "{{ cover_entity }}"
-          # STOP command
-          - conditions:
-              - condition: template
-                value_template: "{{ trigger.event.data.destination == cover_stop_address }}"
-            sequence:
-              - service: cover.stop_cover
+              - service: cover.open_cover
                 target:
                   entity_id: "{{ cover_entity }}"
-          # SET POSITION command
+          # CLOSE
           - conditions:
               - condition: template
-                value_template: "{{ trigger.event.data.destination == cover_position_address }}"
-            sequence:
-              - service: cover.set_cover_position
-                data:
-                  entity_id: "{{ cover_entity }}"
-                  position: "{{ trigger.event.data.data | int(default=0) }}"
-
-    # STATE FEEDBACK
-    - conditions:
-        - condition: trigger
-          id: "cover_entity"
-        - condition: template
-          value_template: "{{ cover_position_state_address != '' }}"
-      sequence:
-        - service: knx.send
-          data:
-            address: "{{ cover_position_state_address }}"
-            payload: "{{ state_attr(cover_entity, 'current_position') | int(default=0) }}"
-            response: true
+                value_template
