@@ -2,7 +2,7 @@ blueprint:
   name: KNX - Media Player control with source selection and power
   description: |
     Use KNX to control a Home Assistant media player entity with specified group addresses. Optionally invert the next/previous song commands and configure source selection and power control.
-    **Version**: 2024.01.5
+    **Version**: 2024.01.6
   author: kalhimeo
   domain: automation
   input:
@@ -12,6 +12,14 @@ blueprint:
       selector:
         entity:
           domain: media_player
+    power_address:
+      name: Power group address
+      description: Group address for power control. DPT 1.001
+      default: ""
+    power_feedback_address:
+      name: Power Feedback group address
+      description: Group address for sending power feedback. DPT 1.001
+      default: ""
     next_prev_address:
       name: Next/Previous Song group address
       description: Group address for next and previous song control. DPT 1.001. Use 1 for next and 0 for previous.
@@ -51,10 +59,6 @@ blueprint:
     volume_step_address:
       name: Volume Step group address
       description: Group address for volume up/down control. DPT 1.001
-      default: ""
-    power_address:  # New input for power control
-      name: Power group address
-      description: Group address for power control. DPT 1.001
       default: ""
     source_1_knx_value:
       name: Source 1 KNX Value
@@ -133,6 +137,8 @@ max_exceeded: silent
 
 variables:
   media_player_entity: !input media_player_entity
+  power_address: !input power_address
+  power_feedback_address: !input power_feedback_address
   next_prev_address: !input next_prev_address
   volume_value_address: !input volume_value_address
   volume_feedback_address: !input volume_feedback_address
@@ -143,7 +149,6 @@ variables:
   source_address: !input source_address
   source_feedback_address: !input source_feedback_address
   volume_step_address: !input volume_step_address
-  power_address: !input power_address  # Added input for power control
   source_1_knx_value: !input source_1_knx_value
   source_1_name: !input source_1_name
   source_2_knx_value: !input source_2_knx_value
@@ -186,6 +191,20 @@ action:
         - condition: trigger
           id: "initialize"
       sequence:
+        - if:
+            - condition: template
+              value_template: "{{ power_address != '' }}"
+          then:
+            - service: knx.event_register
+              data:
+                address: "{{ power_address }}"
+        - if:
+            - condition: template
+              value_template: "{{ power_feedback_address != '' }}"
+          then:
+            - service: knx.event_register
+              data:
+                address: "{{ power_feedback_address }}"
         - if:
             - condition: template
               value_template: "{{ next_prev_address != '' }}"
@@ -256,18 +275,11 @@ action:
             - service: knx.event_register
               data:
                 address: "{{ volume_step_address }}"
-        - if:
-            - condition: template
-              value_template: "{{ power_address != '' }}"
-          then:
-            - service: knx.event_register
-              data:
-                address: "{{ power_address }}"
 
     # KNX TELEGRAMS
     - conditions:
-        - condition: template
-          value_template: "{{ trigger is defined and trigger.platform == 'event' and trigger.event.event_type == 'knx_event' and trigger.event.data.direction == 'Incoming' and trigger.event.data.destination != '' }}"
+        - condition: trigger
+          id: "knx_event"
       sequence:
         - choose:
           # NEXT/PREVIOUS SONG
@@ -402,8 +414,8 @@ action:
 
     # MEDIA PLAYER STATE CHANGES
     - conditions:
-        - condition: template
-          value_template: "{{ trigger is defined and trigger.platform == 'state' and trigger.entity_id == media_player_entity }}"
+        - condition: trigger
+          id: "media_player_entity"
       sequence:
         - choose:
           # VOLUME FEEDBACK
@@ -462,10 +474,10 @@ action:
           # POWER FEEDBACK
           - conditions:
               - condition: template
-                value_template: "{{ power_address != '' }}"
+                value_template: "{{ power_feedback_address != '' }}"
             sequence:
               - service: knx.send
                 data:
-                  address: "{{ power_address }}"
+                  address: "{{ power_feedback_address }}"
                   payload: "{{ 1 if is_state(media_player_entity, 'on') else 0 }}"
                   type: 'percent'
