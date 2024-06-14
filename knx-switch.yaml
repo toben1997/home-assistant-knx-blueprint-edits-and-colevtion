@@ -1,0 +1,185 @@
+blueprint:
+  name: KNX - Switch entities control
+  description: |
+    Use KNX to control an Home Assistant switch entity with optional state feedback
+    **Version**: 2024.01.1
+  author: kalhimeo
+  source_url: https://gist.github.com/kalhimeo/88f6e38b45aa872961cc7b748eacef3d
+  domain: automation
+  input:
+    switch_entity:
+      name: Switch Entity
+      description: >
+        Choose the switch to control and expose with KNX
+      selector:
+        entity:
+          domain: switch
+    switch_address:
+      name: Switch group address
+      description: >
+        Group address for switching the switch on and off. DPT 1.001
+        Example: '1/0/1' (leave empty if unused)
+      default: ""
+    switch_state_address:
+      name: Switch state group address
+      description: >
+        Group address to send feedback of the state of the switch. DPT 1.001
+        Example: '1/4/1' (leave empty if unused)
+      default: ""
+
+mode: parallel
+max_exceeded: silent
+
+variables:
+  switch_entity: !input switch_entity
+  switch_address: !input switch_address
+  switch_state_address: !input switch_state_address
+
+trigger:
+  - platform: homeassistant
+    event: start
+    id: "initialize"
+  - platform: event
+    event_type: automation_reloaded
+    id: "initialize"
+  - platform: event
+    event_type: service_registered
+    event_data:
+      domain: knx
+      service: event_register
+    id: "initialize"
+  - platform: state
+    entity_id: !input switch_entity
+    id: "switch_entity"
+  - platform: event
+    event_type: knx_event
+    event_data:
+      destination: !input switch_address
+      telegramtype: GroupValueWrite
+      direction: Incoming
+    id: "switch_address"
+  - platform: event
+    event_type: knx_event
+    event_data:
+      destination: !input switch_state_address
+      telegramtype: GroupValueRead
+      direction: Incoming
+    id: "switch_state_address"
+
+action:
+  - choose:
+    # INITIALIZE
+    - conditions:
+        - condition: trigger
+          id: "initialize"
+      sequence:
+        # SWITCH
+        - if:
+            - condition: template
+              value_template: "{{ switch_address != '' }}"
+          then:
+            - service: knx.event_register
+              data:
+                address: "{{ switch_address }}"
+        - if:
+            - condition: template
+              value_template: "{{ switch_state_address != '' }}"
+          then:
+            - service: knx.event_register
+              data:
+                address: "{{ switch_state_address }}"
+
+    # KNX TELEGRAMS
+    - conditions:
+        condition: template
+        value_template: "{{ trigger is defined and trigger.platform == 'event' and trigger.event.event_type == 'knx_event' and trigger.event.data.direction == 'Incoming' and trigger.event.data.destination != '' }}"
+      sequence:
+        - choose:
+
+          # SWITCH command
+          - conditions:
+              - condition: trigger
+                id: "switch_address"
+              - condition: template
+                value_template: "{{ switch_address != '' }}"
+            sequence:
+              - choose:
+                - conditions:
+                    - condition: template
+                      value_template: "{{ trigger.event.data.data | int(default=0) == 0 }}"
+                  sequence:
+                    - service: switch.turn_off
+                      target:
+                        entity_id: "{{ switch_entity }}"
+                - conditions:
+                    - condition: template
+                      value_template: "{{ trigger.event.data.data | int(default=0) == 1 }}"
+                  sequence:
+                    - service: switch.turn_on
+                      target:
+                        entity_id: "{{ switch_entity }}"
+                        
+          # SWITCH read
+          - conditions:
+              - condition: trigger
+                id: "switch_state_address"
+              - condition: template
+                value_template: "{{ switch_state_address != '' }}"
+            sequence:
+              - if:
+                  - condition: or
+                    conditions:
+                      - condition: state
+                        entity_id: !input switch_entity
+                        state: "off"
+                      - condition: state
+                        entity_id: !input switch_entity
+                        state: "unavailable"
+                      - condition: state
+                        entity_id: !input switch_entity
+                        state: "unknown"
+                then:
+                  - service: knx.send
+                    data:
+                      address: "{{ switch_state_address }}"
+                      payload: 0
+                      response: true
+                else:
+                  - service: knx.send
+                    data:
+                      address: "{{ switch_state_address }}"
+                      payload: 1
+                      response: true
+
+    # STATE FEEDBACK
+    - conditions:
+        - condition: trigger
+          id: "switch_entity"
+        - condition: template
+          value_template: "{{ switch_entity != '' }}"
+      sequence:
+
+        # SWITCH change
+        - if:
+            - condition: template
+              value_template: "{{ trigger.to_state.state != trigger.from_state.state }}"
+            - condition: template
+              value_template: "{{ switch_state_address != '' }}"
+          then:
+            - choose :
+              - conditions:
+                  condition: template
+                  value_template: "{{ trigger.to_state.state == 'off' }}"
+                sequence:
+                  - service: knx.send
+                    data:
+                      address: "{{ switch_state_address }}"
+                      payload: 0
+              - conditions:
+                  condition: template
+                  value_template: "{{ trigger.to_state.state == 'on' }}"
+                sequence:
+                  - service: knx.send
+                    data:
+                      address: "{{ switch_state_address }}"
+                      payload: 1
