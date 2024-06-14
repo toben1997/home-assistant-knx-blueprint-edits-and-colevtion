@@ -1,5 +1,5 @@
 blueprint:
-  name: KNX - Cover control
+  name: KNX - Cover control one Adrass
   description: |
     Use KNX to control a Home Assistant cover entity with specified group addresses for open, close, stop, and position commands. Optionally invert the position value.
     **Version**: 2024.01.3
