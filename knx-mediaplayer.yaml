@@ -1,165 +1,178 @@
 blueprint:
-  name: KNX - Media Player control with source selection and power
-  description: |
-    Use KNX to control a Home Assistant media player entity with specified group addresses. Optionally invert the next/previous song commands and configure source selection.
-    **Version**: 2024.01.5
+  name: KNX - Media Player Control
+  description: >
+    Use KNX to control a Home Assistant media player entity with state feedback
+    **Version**: 2024.01.1
   author: kalhimeo
   domain: automation
   input:
     media_player_entity:
       name: Media Player Entity
-      description: Choose the media player to control and expose with KNX
+      description: >
+        Choose the media player to control and expose with KNX
       selector:
         entity:
           domain: media_player
-    next_prev_address:
-      name: Next/Previous Song group address
-      description: Group address for next and previous song control. DPT 1.001. Use 1 for next and 0 for previous.
+    power_address:
+      name: Power group address
+      description: >
+        Group address for power control (0=off, 1=on). DPT 1.001
+        Example: '1/0/1' (leave empty if unused)
       default: ""
-    volume_value_address:
-      name: Volume Value group address
-      description: Group address for setting the volume value. DPT 5.001
+    power_feedback_address:
+      name: Power feedback group address
+      description: >
+        Group address to send feedback of the power state. DPT 1.001
+        Example: '1/4/1' (leave empty if unused)
+      default: ""
+    previous_next_address:
+      name: Previous/Next Song group address
+      description: >
+        Group address for previous/next song control (0=previous, 1=next). DPT 1.001
+        Example: '1/0/2' (leave empty if unused)
+      default: ""
+    volume_address:
+      name: Volume group address
+      description: >
+        Group address for volume control (0-255 for 0-100%). DPT 5.001
+        Example: '1/0/3' (leave empty if unused)
       default: ""
     volume_feedback_address:
-      name: Volume Feedback group address
-      description: Group address for sending volume feedback. DPT 5.001
+      name: Volume feedback group address
+      description: >
+        Group address to send feedback of the volume level (0-255 for 0-100%). DPT 5.001
+        Example: '1/4/3' (leave empty if unused)
       default: ""
     play_pause_address:
       name: Play/Pause group address
-      description: Group address for play/pause control. DPT 1.001
+      description: >
+        Group address for play/pause control (0=pause, 1=play). DPT 1.001
+        Example: '1/0/4' (leave empty if unused)
       default: ""
     play_pause_feedback_address:
-      name: Play/Pause Feedback group address
-      description: Group address for sending play/pause feedback. DPT 1.001
+      name: Play/Pause feedback group address
+      description: >
+        Group address to send feedback of the play/pause state. DPT 1.001
+        Example: '1/4/4' (leave empty if unused)
       default: ""
     mute_address:
       name: Mute group address
-      description: Group address for mute control. DPT 1.001
+      description: >
+        Group address for mute control (0=unmute, 1=mute). DPT 1.001
+        Example: '1/0/5' (leave empty if unused)
       default: ""
     mute_feedback_address:
-      name: Mute Feedback group address
-      description: Group address for sending mute feedback. DPT 1.001
-      default: ""
-    source_address:
-      name: Source group address
-      description: Group address for source selection. DPT 5.001 (1 byte)
-      default: ""
-    source_feedback_address:
-      name: Source Feedback group address
-      description: Group address for sending source feedback. DPT 5.001
+      name: Mute feedback group address
+      description: >
+        Group address to send feedback of the mute state. DPT 1.001
+        Example: '1/4/5' (leave empty if unused)
       default: ""
     volume_step_address:
       name: Volume Step group address
-      description: Group address for volume up/down control. DPT 1.001
+      description: >
+        Group address for volume step control (0=step down, 1=step up). DPT 1.001
+        Example: '1/0/6' (leave empty if unused)
       default: ""
-    power_address:
-      name: Power group address
-      description: Group address for power control (On/Off). DPT 1.001
-      default: ""
-    power_feedback_address:
-      name: Power Feedback group address
-      description: Group address for sending power status feedback. DPT 1.001
-      default: ""
-    source_1_knx_value:
-      name: Source 1 KNX Value
-      description: KNX value for selecting source 1.
-      default: 0
+    volume_step_size:
+      name: Volume Step Size
+      description: >
+        Size of volume steps in percentage points (1-100)
+      default: 5
       selector:
         number:
-          min: 0
-          max: 255
-          step: 1
+          min: 1
+          max: 100
+    source_address:
+      name: Source group address
+      description: >
+        Group address for source selection (0-255 for different sources). DPT 5.001
+        Example: '1/0/7' (leave empty if unused)
+      default: ""
+    source_feedback_address:
+      name: Source feedback group address
+      description: >
+        Group address to send feedback of the source selection (0-255). DPT 5.001
+        Example: '1/4/7' (leave empty if unused)
+      default: ""
+    source_1_value:
+      name: Source 1 Value
+      description: >
+        KNX value for source 1 (e.g., 0)
+      default: 0
     source_1_name:
       name: Source 1 Name
-      description: Media player source name for source 1.
-      default: "Source 1"
-    source_2_knx_value:
-      name: Source 2 KNX Value
-      description: KNX value for selecting source 2.
+      description: >
+        Media player source name for source 1 (e.g., Spotify)
+      default: "Spotify"
+    source_2_value:
+      name: Source 2 Value
+      description: >
+        KNX value for source 2 (e.g., 1)
       default: 1
-      selector:
-        number:
-          min: 0
-          max: 255
-          step: 1
     source_2_name:
       name: Source 2 Name
-      description: Media player source name for source 2.
-      default: "Source 2"
-    source_3_knx_value:
-      name: Source 3 KNX Value
-      description: KNX value for selecting source 3.
+      description: >
+        Media player source name for source 2 (e.g., Bluetooth)
+      default: "Bluetooth"
+    source_3_value:
+      name: Source 3 Value
+      description: >
+        KNX value for source 3 (e.g., 2)
       default: 2
-      selector:
-        number:
-          min: 0
-          max: 255
-          step: 1
     source_3_name:
       name: Source 3 Name
-      description: Media player source name for source 3.
-      default: "Source 3"
-    source_4_knx_value:
-      name: Source 4 KNX Value
-      description: KNX value for selecting source 4.
+      description: >
+        Media player source name for source 3 (e.g., Radio)
+      default: "Radio"
+    source_4_value:
+      name: Source 4 Value
+      description: >
+        KNX value for source 4 (e.g., 3)
       default: 3
-      selector:
-        number:
-          min: 0
-          max: 255
-          step: 1
     source_4_name:
       name: Source 4 Name
-      description: Media player source name for source 4.
-      default: "Source 4"
-    source_5_knx_value:
-      name: Source 5 KNX Value
-      description: KNX value for selecting source 5.
+      description: >
+        Media player source name for source 4 (e.g., AUX)
+      default: "AUX"
+    source_5_value:
+      name: Source 5 Value
+      description: >
+        KNX value for source 5 (e.g., 4)
       default: 4
-      selector:
-        number:
-          min: 0
-          max: 255
-          step: 1
     source_5_name:
       name: Source 5 Name
-      description: Media player source name for source 5.
-      default: "Source 5"
-    invert_next_prev:
-      name: Invert Next/Previous
-      description: Invert the next and previous song commands.
-      default: false
-      selector:
-        boolean: {}
+      description: >
+        Media player source name for source 5 (e.g., USB)
+      default: "USB"
 
 mode: parallel
 max_exceeded: silent
 
 variables:
   media_player_entity: !input media_player_entity
-  next_prev_address: !input next_prev_address
-  volume_value_address: !input volume_value_address
+  power_address: !input power_address
+  power_feedback_address: !input power_feedback_address
+  previous_next_address: !input previous_next_address
+  volume_address: !input volume_address
   volume_feedback_address: !input volume_feedback_address
   play_pause_address: !input play_pause_address
   play_pause_feedback_address: !input play_pause_feedback_address
   mute_address: !input mute_address
   mute_feedback_address: !input mute_feedback_address
+  volume_step_address: !input volume_step_address
+  volume_step_size: !input volume_step_size
   source_address: !input source_address
   source_feedback_address: !input source_feedback_address
-  volume_step_address: !input volume_step_address
-  power_address: !input power_address
-  power_feedback_address: !input power_feedback_address
-  source_1_knx_value: !input source_1_knx_value
+  source_1_value: !input source_1_value
   source_1_name: !input source_1_name
-  source_2_knx_value: !input source_2_knx_value
+  source_2_value: !input source_2_value
   source_2_name: !input source_2_name
-  source_3_knx_value: !input source_3_knx_value
+  source_3_value: !input source_3_value
   source_3_name: !input source_3_name
-  source_4_knx_value: !input source_4_knx_value
+  source_4_value: !input source_4_value
   source_4_name: !input source_4_name
-  source_5_knx_value: !input source_5_knx_value
+  source_5_value: !input source_5_value
   source_5_name: !input source_5_name
-  invert_next_prev: !input invert_next_prev
 
 trigger:
   - platform: homeassistant
@@ -180,9 +193,87 @@ trigger:
   - platform: event
     event_type: knx_event
     event_data:
+      destination: !input power_address
       telegramtype: GroupValueWrite
       direction: Incoming
-    id: "knx_event"
+    id: "power_address"
+  - platform: event
+    event_type: knx_event
+    event_data:
+      destination: !input power_feedback_address
+      telegramtype: GroupValueRead
+      direction: Incoming
+    id: "power_feedback_address"
+  - platform: event
+    event_type: knx_event
+    event_data:
+      destination: !input previous_next_address
+      telegramtype: GroupValueWrite
+      direction: Incoming
+    id: "previous_next_address"
+  - platform: event
+    event_type: knx_event
+    event_data:
+      destination: !input volume_address
+      telegramtype: GroupValueWrite
+      direction: Incoming
+    id: "volume_address"
+  - platform: event
+    event_type: knx_event
+    event_data:
+      destination: !input volume_feedback_address
+      telegramtype: GroupValueRead
+      direction: Incoming
+    id: "volume_feedback_address"
+  - platform: event
+    event_type: knx_event
+    event_data:
+      destination: !input play_pause_address
+      telegramtype: GroupValueWrite
+      direction: Incoming
+    id: "play_pause_address"
+  - platform: event
+    event_type: knx_event
+    event_data:
+      destination: !input play_pause_feedback_address
+      telegramtype: GroupValueRead
+      direction: Incoming
+    id: "play_pause_feedback_address"
+  - platform: event
+    event_type: knx_event
+    event_data:
+      destination: !input mute_address
+      telegramtype: GroupValueWrite
+      direction: Incoming
+    id: "mute_address"
+  - platform: event
+    event_type: knx_event
+    event_data:
+      destination: !input mute_feedback_address
+      telegramtype: GroupValueRead
+      direction: Incoming
+    id: "mute_feedback_address"
+  - platform: event
+    event_type: knx_event
+    event_data:
+      destination: !input volume_step_address
+      telegramtype: GroupValueWrite
+      direction: Incoming
+    id: "volume_step_address"
+  - platform: event
+    event_type: knx_event
+    event_data:
+      destination: !input source_address
+      telegramtype: GroupValueWrite
+      direction: Incoming
+    id: "source_address"
+  - platform: event
+    event_type: knx_event
+    event_data:
+      destination: !input source_feedback_address
+      telegramtype: GroupValueRead
+      direction: Incoming
+    id: "source_feedback_address"
 
 action:
   - choose:
@@ -191,76 +282,7 @@ action:
         - condition: trigger
           id: "initialize"
       sequence:
-        - if:
-            - condition: template
-              value_template: "{{ next_prev_address != '' }}"
-          then:
-            - service: knx.event_register
-              data:
-                address: "{{ next_prev_address }}"
-        - if:
-            - condition: template
-              value_template: "{{ volume_value_address != '' }}"
-          then:
-            - service: knx.event_register
-              data:
-                address: "{{ volume_value_address }}"
-        - if:
-            - condition: template
-              value_template: "{{ volume_feedback_address != '' }}"
-          then:
-            - service: knx.event_register
-              data:
-                address: "{{ volume_feedback_address }}"
-        - if:
-            - condition: template
-              value_template: "{{ play_pause_address != '' }}"
-          then:
-            - service: knx.event_register
-              data:
-                address: "{{ play_pause_address }}"
-        - if:
-            - condition: template
-              value_template: "{{ play_pause_feedback_address != '' }}"
-          then:
-            - service: knx.event_register
-              data:
-                address: "{{ play_pause_feedback_address }}"
-        - if:
-            - condition: template
-              value_template: "{{ mute_address != '' }}"
-          then:
-            - service: knx.event_register
-              data:
-                address: "{{ mute_address }}"
-        - if:
-            - condition: template
-              value_template: "{{ mute_feedback_address != '' }}"
-          then:
-            - service: knx.event_register
-              data:
-                address: "{{ mute_feedback_address }}"
-        - if:
-            - condition: template
-              value_template: "{{ source_address != '' }}"
-          then:
-            - service: knx.event_register
-              data:
-                address: "{{ source_address }}"
-        - if:
-            - condition: template
-              value_template: "{{ source_feedback_address != '' }}"
-          then:
-            - service: knx.event_register
-              data:
-                address: "{{ source_feedback_address }}"
-        - if:
-            - condition: template
-              value_template: "{{ volume_step_address != '' }}"
-          then:
-            - service: knx.event_register
-              data:
-                address: "{{ volume_step_address }}"
+        # POWER
         - if:
             - condition: template
               value_template: "{{ power_address != '' }}"
@@ -275,211 +297,548 @@ action:
             - service: knx.event_register
               data:
                 address: "{{ power_feedback_address }}"
-    # MEDIA PLAYER STATE CHANGE
+        # PREVIOUS/NEXT SONG
+        - if:
+            - condition: template
+              value_template: "{{ previous_next_address != '' }}"
+          then:
+            - service: knx.event_register
+              data:
+                address: "{{ previous_next_address }}"
+        # VOLUME
+        - if:
+            - condition: template
+              value_template: "{{ volume_address != '' }}"
+          then:
+            - service: knx.event_register
+              data:
+                address: "{{ volume_address }}"
+        - if:
+            - condition: template
+              value_template: "{{ volume_feedback_address != '' }}"
+          then:
+            - service: knx.event_register
+              data:
+                address: "{{ volume_feedback_address }}"
+        # PLAY/PAUSE
+        - if:
+            - condition: template
+              value_template: "{{ play_pause_address != '' }}"
+          then:
+            - service: knx.event_register
+              data:
+                address: "{{ play_pause_address }}"
+        - if:
+            - condition: template
+              value_template: "{{ play_pause_feedback_address != '' }}"
+          then:
+            - service: knx.event_register
+              data:
+                address: "{{ play_pause_feedback_address }}"
+        # MUTE
+        - if:
+            - condition: template
+              value_template: "{{ mute_address != '' }}"
+          then:
+            - service: knx.event_register
+              data:
+                address: "{{ mute_address }}"
+        - if:
+            - condition: template
+              value_template: "{{ mute_feedback_address != '' }}"
+          then:
+            - service: knx.event_register
+              data:
+                address: "{{ mute_feedback_address }}"
+        # VOLUME STEP
+        - if:
+            - condition: template
+              value_template: "{{ volume_step_address != '' }}"
+          then:
+            - service: knx.event_register
+              data:
+                address: "{{ volume_step_address }}"
+        # SOURCE
+        - if:
+            - condition: template
+              value_template: "{{ source_address != '' }}"
+          then:
+            - service: knx.event_register
+              data:
+                address: "{{ source_address }}"
+        - if:
+            - condition: template
+              value_template: "{{ source_feedback_address != '' }}"
+          then:
+            - service: knx.event_register
+              data:
+                address: "{{ source_feedback_address }}"
+
+    # KNX TELEGRAMS
     - conditions:
-        - condition: trigger
-          id: "media_player_entity"
+        condition: template
+        value_template: "{{ trigger is defined and trigger.platform == 'event' and trigger.event.event_type == 'knx_event' and trigger.event.data.direction == 'Incoming' and trigger.event.data.destination != '' }}"
       sequence:
-        - variables:
-            current_state: "{{ trigger.from_state.state }}"
-            new_state: "{{ trigger.to_state.state }}"
         - choose:
-            # Turned On
-            - conditions:
-                - condition: template
-                  value_template: "{{ new_state == 'on' }}"
-              sequence:
-                - service: knx.send
-                  data:
-                    address: "{{ power_feedback_address }}"
-                    payload:
-                      type: "DPT1"
-                      value: 1
-            # Turned Off
-            - conditions:
-                - condition: template
-                  value_template: "{{ new_state == 'off' }}"
-              sequence:
-                - service: knx.send
-                  data:
-                    address: "{{ power_feedback_address }}"
-                    payload:
-                      type: "DPT1"
-                      value: 0
-    # KNX EVENT
-    - conditions:
-        - condition: trigger
-          id: "knx_event"
-      sequence:
-        - variables:
-            knx_address: "{{ trigger.event.data.destination }}"
-            knx_value: "{{ trigger.event.data.data }}"
-        - choose:
-            # Next or Previous Song
-            - conditions:
-                - condition: template
-                  value_template: "{{ knx_address == next_prev_address }}"
-              sequence:
-                - if:
+          # POWER command
+          - conditions:
+              - condition: trigger
+                id: "power_address"
+              - condition: template
+                value_template: "{{ power_address != '' }}"
+            sequence:
+              - choose:
+                - conditions:
                     - condition: template
-                      value_template: "{{ knx_value == '1' }}"
-                  then:
-                    - service: media_player.media_next_track
-                      target:
-                        entity_id: "{{ media_player_entity }}"
-                  else:
-                    - service: media_player.media_previous_track
-                      target:
-                        entity_id: "{{ media_player_entity }}"
-            # Volume Control
-            - conditions:
-                - condition: template
-                  value_template: "{{ knx_address == volume_value_address }}"
-              sequence:
-                - service: media_player.volume_set
-                  data:
-                    entity_id: "{{ media_player_entity }}"
-                    volume_level: "{{ (knx_value | float) / 100 }}"
-                - service: knx.send
-                  data:
-                    address: "{{ volume_feedback_address }}"
-                    payload:
-                      type: "DPT5"
-                      value: "{{ knx_value }}"
-            # Play/Pause Control
-            - conditions:
-                - condition: template
-                  value_template: "{{ knx_address == play_pause_address }}"
-              sequence:
-                - if:
-                    - condition: template
-                      value_template: "{{ knx_value == '1' }}"
-                  then:
-                    - service: media_player.media_play_pause
-                      target:
-                        entity_id: "{{ media_player_entity }}"
-                - service: knx.send
-                  data:
-                    address: "{{ play_pause_feedback_address }}"
-                    payload:
-                      type: "DPT1"
-                      value: "{{ knx_value }}"
-            # Mute Control
-            - conditions:
-                - condition: template
-                  value_template: "{{ knx_address == mute_address }}"
-              sequence:
-                - service: media_player.volume_mute
-                  data:
-                    is_volume_muted: "{{ knx_value == '1' }}"
-                    entity_id: "{{ media_player_entity }}"
-                - service: knx.send
-                  data:
-                    address: "{{ mute_feedback_address }}"
-                    payload:
-                      type: "DPT1"
-                      value: "{{ knx_value }}"
-            # Source Selection
-            - conditions:
-                - condition: template
-                  value_template: "{{ knx_address == source_address }}"
-              sequence:
-                - choose:
-                    # Source 1
-                    - conditions:
-                        - condition: template
-                          value_template: "{{ knx_value == source_1_knx_value }}"
-                      sequence:
-                        - service: media_player.select_source
-                          data:
-                            entity_id: "{{ media_player_entity }}"
-                            source: "{{ source_1_name }}"
-                    # Source 2
-                    - conditions:
-                        - condition: template
-                          value_template: "{{ knx_value == source_2_knx_value }}"
-                      sequence:
-                        - service: media_player.select_source
-                          data:
-                            entity_id: "{{ media_player_entity }}"
-                            source: "{{ source_2_name }}"
-                    # Source 3
-                    - conditions:
-                        - condition: template
-                          value_template: "{{ knx_value == source_3_knx_value }}"
-                      sequence:
-                        - service: media_player.select_source
-                          data:
-                            entity_id: "{{ media_player_entity }}"
-                            source: "{{ source_3_name }}"
-                    # Source 4
-                    - conditions:
-                        - condition: template
-                          value_template: "{{ knx_value == source_4_knx_value }}"
-                      sequence:
-                        - service: media_player.select_source
-                          data:
-                            entity_id: "{{ media_player_entity }}"
-                            source: "{{ source_4_name }}"
-                    # Source 5
-                    - conditions:
-                        - condition: template
-                          value_template: "{{ knx_value == source_5_knx_value }}"
-                      sequence:
-                        - service: media_player.select_source
-                          data:
-                            entity_id: "{{ media_player_entity }}"
-                            source: "{{ source_5_name }}"
-                - service: knx.send
-                  data:
-                    address: "{{ source_feedback_address }}"
-                    payload:
-                      type: "DPT5"
-                      value: "{{ knx_value }}"
-            # Volume Step Control
-            - conditions:
-                - condition: template
-                  value_template: "{{ knx_address == volume_step_address }}"
-              sequence:
-                - if:
-                    - condition: template
-                      value_template: "{{ knx_value == '1' }}"
-                  then:
-                    - service: media_player.volume_up
-                      target:
-                        entity_id: "{{ media_player_entity }}"
-                - if:
-                    - condition: template
-                      value_template: "{{ knx_value == '0' }}"
-                  then:
-                    - service: media_player.volume_down
-                      target:
-                        entity_id: "{{ media_player_entity }}"
-            # Power Control
-            - conditions:
-                - condition: template
-                  value_template: "{{ knx_address == power_address }}"
-              sequence:
-                - if:
-                    - condition: template
-                      value_template: "{{ knx_value == '1' }}"
-                  then:
-                    - service: media_player.turn_on
-                      target:
-                        entity_id: "{{ media_player_entity }}"
-                - if:
-                    - condition: template
-                      value_template: "{{ knx_value == '0' }}"
-                  then:
+                      value_template: "{{ trigger.event.data.data | int(default=0) == 0 }}"
+                  sequence:
                     - service: media_player.turn_off
                       target:
                         entity_id: "{{ media_player_entity }}"
-                - service: knx.send
-                  data:
-                    address: "{{ power_feedback_address }}"
-                    payload:
-                      type: "DPT1"
-                      value: "{{ knx_value }}"
-        - service: knx.event_register
-          data:
-            address: "{{ knx_address }}"
+                - conditions:
+                    - condition: template
+                      value_template: "{{ trigger.event.data.data | int(default=0) == 1 }}"
+                  sequence:
+                    - service: media_player.turn_on
+                      target:
+                        entity_id: "{{ media_player_entity }}"
+          # PREVIOUS/NEXT SONG command
+          - conditions:
+              - condition: trigger
+                id: "previous_next_address"
+              - condition: template
+                value_template: "{{ previous_next_address != '' }}"
+            sequence:
+              - choose:
+                - conditions:
+                    - condition: template
+                      value_template: "{{ trigger.event.data.data | int(default=0) == 0 }}"
+                  sequence:
+                    - service: media_player.media_previous_track
+                      target:
+                        entity_id: "{{ media_player_entity }}"
+                - conditions:
+                    - condition: template
+                      value_template: "{{ trigger.event.data.data | int(default=0) == 1 }}"
+                  sequence:
+                    - service: media_player.media_next_track
+                      target:
+                        entity_id: "{{ media_player_entity }}"
+          # VOLUME command
+          - conditions:
+              - condition: trigger
+                id: "volume_address"
+              - condition: template
+                value_template: "{{ volume_address != '' }}"
+            sequence:
+              - service: media_player.volume_set
+                target:
+                  entity_id: "{{ media_player_entity }}"
+                data:
+                  volume_level: "{{ (trigger.event.data.data | int(default=0) / 255) | float }}"
+          # PLAY/PAUSE command
+          - conditions:
+              - condition: trigger
+                id: "play_pause_address"
+              - condition: template
+                value_template: "{{ play_pause_address != '' }}"
+            sequence:
+              - choose:
+                - conditions:
+                    - condition: template
+                      value_template: "{{ trigger.event.data.data | int(default=0) == 0 }}"
+                  sequence:
+                    - service: media_player.media_pause
+                      target:
+                        entity_id: "{{ media_player_entity }}"
+                - conditions:
+                    - condition: template
+                      value_template: "{{ trigger.event.data.data | int(default=0) == 1 }}"
+                  sequence:
+                    - service: media_player.media_play
+                      target:
+                        entity_id: "{{ media_player_entity }}"
+          # MUTE command
+          - conditions:
+              - condition: trigger
+                id: "mute_address"
+              - condition: template
+                value_template: "{{ mute_address != '' }}"
+            sequence:
+              - choose:
+                - conditions:
+                    - condition: template
+                      value_template: "{{ trigger.event.data.data | int(default=0) == 0 }}"
+                  sequence:
+                    - service: media_player.volume_mute
+                      target:
+                        entity_id: "{{ media_player_entity }}"
+                      data:
+                        is_volume_muted: false
+                - conditions:
+                    - condition: template
+                      value_template: "{{ trigger.event.data.data | int(default=0) == 1 }}"
+                  sequence:
+                    - service: media_player.volume_mute
+                      target:
+                        entity_id: "{{ media_player_entity }}"
+                      data:
+                        is_volume_muted: true
+          # VOLUME STEP command
+          - conditions:
+              - condition: trigger
+                id: "volume_step_address"
+              - condition: template
+                value_template: "{{ volume_step_address != '' }}"
+            sequence:
+              - service: media_player.volume_set
+                target:
+                  entity_id: "{{ media_player_entity }}"
+                data:
+                  volume_level: >
+                    {{ [
+                      0, [
+                        1.0,
+                        states(media_player_entity) | float + (volume_step_size / 100.0) * (1 if trigger.event.data.data | int(default=0) == 1 else -1)
+                      ] | min
+                    ] | max }}
+          # SOURCE command
+          - conditions:
+              - condition: trigger
+                id: "source_address"
+              - condition: template
+                value_template: "{{ source_address != '' }}"
+            sequence:
+              - choose:
+                - conditions:
+                    - condition: template
+                      value_template: "{{ trigger.event.data.data | int(default=0) == source_1_value }}"
+                  sequence:
+                    - service: media_player.select_source
+                      target:
+                        entity_id: "{{ media_player_entity }}"
+                      data:
+                        source: "{{ source_1_name }}"
+                - conditions:
+                    - condition: template
+                      value_template: "{{ trigger.event.data.data | int(default=0) == source_2_value }}"
+                  sequence:
+                    - service: media_player.select_source
+                      target:
+                        entity_id: "{{ media_player_entity }}"
+                      data:
+                        source: "{{ source_2_name }}"
+                - conditions:
+                    - condition: template
+                      value_template: "{{ trigger.event.data.data | int(default=0) == source_3_value }}"
+                  sequence:
+                    - service: media_player.select_source
+                      target:
+                        entity_id: "{{ media_player_entity }}"
+                      data:
+                        source: "{{ source_3_name }}"
+                - conditions:
+                    - condition: template
+                      value_template: "{{ trigger.event.data.data | int(default=0) == source_4_value }}"
+                  sequence:
+                    - service: media_player.select_source
+                      target:
+                        entity_id: "{{ media_player_entity }}"
+                      data:
+                        source: "{{ source_4_name }}"
+                - conditions:
+                    - condition: template
+                      value_template: "{{ trigger.event.data.data | int(default=0) == source_5_value }}"
+                  sequence:
+                    - service: media_player.select_source
+                      target:
+                        entity_id: "{{ media_player_entity }}"
+                      data:
+                        source: "{{ source_5_name }}"
+
+    # KNX READ
+    - conditions:
+        condition: template
+        value_template: "{{ trigger is defined and trigger.platform == 'event' and trigger.event.event_type == 'knx_event' and trigger.event.data.direction == 'Incoming' and trigger.event.data.telegramtype == 'GroupValueRead' and trigger.event.data.destination != '' }}"
+      sequence:
+        - choose:
+          # POWER read
+          - conditions:
+              - condition: trigger
+                id: "power_feedback_address"
+              - condition: template
+                value_template: "{{ power_feedback_address != '' }}"
+            sequence:
+              - if:
+                  - condition: or
+                    conditions:
+                      - condition: state
+                        entity_id: !input media_player_entity
+                        state: "off"
+                      - condition: state
+                        entity_id: !input media_player_entity
+                        state: "unavailable"
+                      - condition: state
+                        entity_id: !input media_player_entity
+                        state: "unknown"
+                then:
+                  - service: knx.send
+                    data:
+                      address: "{{ power_feedback_address }}"
+                      payload: 0
+                      response: true
+                else:
+                  - service: knx.send
+                    data:
+                      address: "{{ power_feedback_address }}"
+                      payload: 1
+                      response: true
+          # VOLUME read
+          - conditions:
+              - condition: trigger
+                id: "volume_feedback_address"
+              - condition: template
+                value_template: "{{ volume_feedback_address != '' }}"
+            sequence:
+              - service: knx.send
+                data:
+                  address: "{{ volume_feedback_address }}"
+                  payload: "{{ (state_attr(media_player_entity, 'volume_level') * 255) | int }}"
+                  response: true
+          # PLAY/PAUSE read
+          - conditions:
+              - condition: trigger
+                id: "play_pause_feedback_address"
+              - condition: template
+                value_template: "{{ play_pause_feedback_address != '' }}"
+            sequence:
+              - if:
+                  - condition: state
+                    entity_id: !input media_player_entity
+                    state: "playing"
+                then:
+                  - service: knx.send
+                    data:
+                      address: "{{ play_pause_feedback_address }}"
+                      payload: 1
+                      response: true
+                else:
+                  - service: knx.send
+                    data:
+                      address: "{{ play_pause_feedback_address }}"
+                      payload: 0
+                      response: true
+          # MUTE read
+          - conditions:
+              - condition: trigger
+                id: "mute_feedback_address"
+              - condition: template
+                value_template: "{{ mute_feedback_address != '' }}"
+            sequence:
+              - if:
+                  - condition: template
+                    value_template: "{{ state_attr(media_player_entity, 'is_volume_muted') == true }}"
+                then:
+                  - service: knx.send
+                    data:
+                      address: "{{ mute_feedback_address }}"
+                      payload: 1
+                      response: true
+                else:
+                  - service: knx.send
+                    data:
+                      address: "{{ mute_feedback_address }}"
+                      payload: 0
+                      response: true
+          # SOURCE read
+          - conditions:
+              - condition: trigger
+                id: "source_feedback_address"
+              - condition: template
+                value_template: "{{ source_feedback_address != '' }}"
+            sequence:
+              - choose:
+                  - conditions:
+                      - condition: template
+                        value_template: "{{ state_attr(media_player_entity, 'source') == source_1_name }}"
+                    sequence:
+                      - service: knx.send
+                        data:
+                          address: "{{ source_feedback_address }}"
+                          payload: "{{ source_1_value }}"
+                          response: true
+                  - conditions:
+                      - condition: template
+                        value_template: "{{ state_attr(media_player_entity, 'source') == source_2_name }}"
+                    sequence:
+                      - service: knx.send
+                        data:
+                          address: "{{ source_feedback_address }}"
+                          payload: "{{ source_2_value }}"
+                          response: true
+                  - conditions:
+                      - condition: template
+                        value_template: "{{ state_attr(media_player_entity, 'source') == source_3_name }}"
+                    sequence:
+                      - service: knx.send
+                        data:
+                          address: "{{ source_feedback_address }}"
+                          payload: "{{ source_3_value }}"
+                          response: true
+                  - conditions:
+                      - condition: template
+                        value_template: "{{ state_attr(media_player_entity, 'source') == source_4_name }}"
+                    sequence:
+                      - service: knx.send
+                        data:
+                          address: "{{ source_feedback_address }}"
+                          payload: "{{ source_4_value }}"
+                          response: true
+                  - conditions:
+                      - condition: template
+                        value_template: "{{ state_attr(media_player_entity, 'source') == source_5_name }}"
+                    sequence:
+                      - service: knx.send
+                        data:
+                          address: "{{ source_feedback_address }}"
+                          payload: "{{ source_5_value }}"
+                          response: true
+
+    # STATE FEEDBACK
+    - conditions:
+        - condition: trigger
+          id: "media_player_entity"
+        - condition: template
+          value_template: "{{ media_player_entity != '' }}"
+      sequence:
+        # POWER change
+        - if:
+            - condition: template
+              value_template: "{{ trigger.to_state.state != trigger.from_state.state }}"
+            - condition: template
+              value_template: "{{ power_feedback_address != '' }}"
+          then:
+            - choose :
+              - conditions:
+                  condition: template
+                  value_template: "{{ trigger.to_state.state == 'off' }}"
+                sequence:
+                  - service: knx.send
+                    data:
+                      address: "{{ power_feedback_address }}"
+                      payload: 0
+              - conditions:
+                  condition: template
+                  value_template: "{{ trigger.to_state.state == 'on' }}"
+                sequence:
+                  - service: knx.send
+                    data:
+                      address: "{{ power_feedback_address }}"
+                      payload: 1
+        # VOLUME change
+        - if:
+            - condition: template
+              value_template: "{{ volume_feedback_address != '' }}"
+            - condition: template
+              value_template: "{{ trigger.to_state.attributes.volume_level != trigger.from_state.attributes.volume_level }}"
+          then:
+            - service: knx.send
+              data:
+                address: "{{ volume_feedback_address }}"
+                payload: "{{ (trigger.to_state.attributes.volume_level * 255) | int }}"
+        # PLAY/PAUSE change
+        - if:
+            - condition: template
+              value_template: "{{ play_pause_feedback_address != '' }}"
+            - condition: template
+              value_template: "{{ trigger.to_state.state != trigger.from_state.state }}"
+          then:
+            - choose:
+                - conditions:
+                    condition: template
+                    value_template: "{{ trigger.to_state.state == 'playing' }}"
+                  sequence:
+                    - service: knx.send
+                      data:
+                        address: "{{ play_pause_feedback_address }}"
+                        payload: 1
+                - conditions:
+                    condition: template
+                    value_template: "{{ trigger.to_state.state != 'playing' }}"
+                  sequence:
+                    - service: knx.send
+                      data:
+                        address: "{{ play_pause_feedback_address }}"
+                        payload: 0
+        # MUTE change
+        - if:
+            - condition: template
+              value_template: "{{ mute_feedback_address != '' }}"
+            - condition: template
+              value_template: "{{ trigger.to_state.attributes.is_volume_muted != trigger.from_state.attributes.is_volume_muted }}"
+          then:
+            - choose:
+                - conditions:
+                    condition: template
+                    value_template: "{{ trigger.to_state.attributes.is_volume_muted == true }}"
+                  sequence:
+                    - service: knx.send
+                      data:
+                        address: "{{ mute_feedback_address }}"
+                        payload: 1
+                - conditions:
+                    condition: template
+                    value_template: "{{ trigger.to_state.attributes.is_volume_muted == false }}"
+                  sequence:
+                    - service: knx.send
+                      data:
+                        address: "{{ mute_feedback_address }}"
+                        payload: 0
+        # SOURCE change
+        - if:
+            - condition: template
+              value_template: "{{ source_feedback_address != '' }}"
+            - condition: template
+              value_template: "{{ trigger.to_state.attributes.source != trigger.from_state.attributes.source }}"
+          then:
+            - choose:
+                - conditions:
+                    condition: template
+                    value_template: "{{ trigger.to_state.attributes.source == source_1_name }}"
+                  sequence:
+                    - service: knx.send
+                      data:
+                        address: "{{ source_feedback_address }}"
+                        payload: "{{ source_1_value }}"
+                - conditions:
+                    condition: template
+                    value_template: "{{ trigger.to_state.attributes.source == source_2_name }}"
+                  sequence:
+                    - service: knx.send
+                      data:
+                        address: "{{ source_feedback_address }}"
+                        payload: "{{ source_2_value }}"
+                - conditions:
+                    condition: template
+                    value_template: "{{ trigger.to_state.attributes.source == source_3_name }}"
+                  sequence:
+                    - service: knx.send
+                      data:
+                        address: "{{ source_feedback_address }}"
+                        payload: "{{ source_3_value }}"
+                - conditions:
+                    condition: template
+                    value_template: "{{ trigger.to_state.attributes.source == source_4_name }}"
+                  sequence:
+                    - service: knx.send
+                      data:
+                        address: "{{ source_feedback_address }}"
+                        payload: "{{ source_4_value }}"
+                - conditions:
+                    condition: template
+                    value_template: "{{ trigger.to_state.attributes.source == source_5_name }}"
+                  sequence:
+                    - service: knx.send
+                      data:
+                        address: "{{ source_feedback_address }}"
+                        payload: "{{ source_5_value }}"
