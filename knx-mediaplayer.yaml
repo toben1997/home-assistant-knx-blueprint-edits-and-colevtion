@@ -55,10 +55,10 @@ blueprint:
     source_1_knx_value:
       name: Source 1 KNX Value
       description: KNX value for selecting source 1.
-      default: 1
+      default: 0
       selector:
         number:
-          min: 1
+          min: 0
           max: 255
           step: 1
     source_1_name:
@@ -68,10 +68,10 @@ blueprint:
     source_2_knx_value:
       name: Source 2 KNX Value
       description: KNX value for selecting source 2.
-      default: 2
+      default: 1
       selector:
         number:
-          min: 1
+          min: 0
           max: 255
           step: 1
     source_2_name:
@@ -81,10 +81,10 @@ blueprint:
     source_3_knx_value:
       name: Source 3 KNX Value
       description: KNX value for selecting source 3.
-      default: 3
+      default: 2
       selector:
         number:
-          min: 1
+          min: 0
           max: 255
           step: 1
     source_3_name:
@@ -94,10 +94,10 @@ blueprint:
     source_4_knx_value:
       name: Source 4 KNX Value
       description: KNX value for selecting source 4.
-      default: 4
+      default: 3
       selector:
         number:
-          min: 1
+          min: 0
           max: 255
           step: 1
     source_4_name:
@@ -107,10 +107,10 @@ blueprint:
     source_5_knx_value:
       name: Source 5 KNX Value
       description: KNX value for selecting source 5.
-      default: 5
+      default: 4
       selector:
         number:
-          min: 1
+          min: 0
           max: 255
           step: 1
     source_5_name:
