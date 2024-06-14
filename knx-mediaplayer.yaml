@@ -284,4 +284,46 @@ action:
     # STATE FEEDBACK
     - conditions:
         - condition: trigger
-          id:
+          id: "media_player_entity"
+      sequence:
+        - choose:
+          # VOLUME FEEDBACK
+          - conditions:
+              - condition: template
+                value_template: "{{ volume_feedback_address != '' }}"
+            sequence:
+              - service: knx.send
+                data:
+                  address: "{{ volume_feedback_address }}"
+                  payload: "{{ (state_attr(media_player_entity, 'volume_level') | float * 100) | int }}"
+                  type: 'percent'
+          # PLAY/PAUSE FEEDBACK
+          - conditions:
+              - condition: template
+                value_template: "{{ play_pause_feedback_address != '' }}"
+            sequence:
+              - service: knx.send
+                data:
+                  address: "{{ play_pause_feedback_address }}"
+                  payload: "{{ 1 if is_state(media_player_entity, 'playing') else 0 }}"
+                  type: 'percent'
+          # MUTE FEEDBACK
+          - conditions:
+              - condition: template
+                value_template: "{{ mute_feedback_address != '' }}"
+            sequence:
+              - service: knx.send
+                data:
+                  address: "{{ mute_feedback_address }}"
+                  payload: "{{ 1 if state_attr(media_player_entity, 'is_volume_muted') else 0 }}"
+                  type: 'percent'
+          # SOURCE FEEDBACK
+          - conditions:
+              - condition: template
+                value_template: "{{ source_feedback_address != '' }}"
+            sequence:
+              - service: knx.send
+                data:
+                  address: "{{ source_feedback_address }}"
+                  payload: "{{ state_attr(media_player_entity, 'source') }}"
+                  type: 'string'
