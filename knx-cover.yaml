@@ -134,4 +134,52 @@ action:
           # CLOSE
           - conditions:
               - condition: template
-                value_template
+                value_template: "{{ trigger.event.data.destination == close_address }}"
+            sequence:
+              - service: cover.close_cover
+                target:
+                  entity_id: "{{ cover_entity }}"
+          # STOP
+          - conditions:
+              - condition: template
+                value_template: "{{ trigger.event.data.destination == stop_address }}"
+            sequence:
+              - service: cover.stop_cover
+                target:
+                  entity_id: "{{ cover_entity }}"
+          # SET POSITION
+          - conditions:
+              - condition: template
+                value_template: "{{ trigger.event.data.destination == position_address }}"
+            sequence:
+              - service: cover.set_cover_position
+                data:
+                  entity_id: "{{ cover_entity }}"
+                  position: >
+                    {% if invert_position %}
+                      {{ 100 - (trigger.event.data.data | int) }}
+                    {% else %}
+                      {{ trigger.event.data.data }}
+                    {% endif %}
+
+    # STATE FEEDBACK
+    - conditions:
+        - condition: trigger
+          id: "cover_entity"
+      sequence:
+        - choose:
+          # POSITION STATE FEEDBACK
+          - conditions:
+              - condition: template
+                value_template: "{{ position_state_address != '' }}"
+            sequence:
+              - service: knx.send
+                data:
+                  address: "{{ position_state_address }}"
+                  payload: >
+                    {% if invert_position %}
+                      {{ 100 - (states[cover_entity].attributes.current_position | int) }}
+                    {% else %}
+                      {{ states[cover_entity].attributes.current_position }}
+                    {% endif %}
+                  type: 'percent'
