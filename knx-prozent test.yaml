@@ -1,5 +1,5 @@
 blueprint:
-  name: KNX - Alternating Percentage Sender v2024.01.1
+  name: KNX - Alternating Percentage Sender v2024.01.2
   description: |
     This blueprint sends alternating 10% and 30% values to a specified KNX group address every 5 seconds using KNX data type 5.001.
   domain: automation
@@ -18,7 +18,6 @@ blueprint:
           min: 1
           max: 60
           unit_of_measurement: seconds
-  mode: single
 
 variables:
   knx_address: !input knx_address
@@ -34,8 +33,6 @@ action:
     data:
       address: "{{ knx_address }}"
       payload: "{{ current_value }}"
-    target:
-      entity_id: all
   - choose:
       - conditions:
           - condition: template
