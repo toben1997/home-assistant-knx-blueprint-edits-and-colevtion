@@ -1,0 +1,306 @@
+blueprint:
+  name: KNX - Media Player Playback Control
+  description: |
+    Use KNX to control playback options (previous/next track, pause/play) of a Home Assistant media player entity with optional state feedback.
+    This blueprint allows you to select which media player should be controlled and provides input fields for the KNX group addresses:
+    - One address for previous (0) and next track (1) control, with an option to send double previous commands.
+    - One address for pause (0) and play (1) control.
+    - One address for state feedback, notifying the KNX system whether the media player is playing or paused.
+    Each address has an option to invert the received/sent values.
+
+    **Version**: 2024.01.1
+  author: ChatGPT
+  source_url: https://example.com
+  domain: automation
+  input:
+    media_player_entity:
+      name: Media Player Entity
+      description: >
+        Choose the media player to control via KNX.
+      selector:
+        entity:
+          domain: media_player
+
+    knx_track_control_address:
+      name: KNX Track Control Group Address
+      description: >
+        Group address for controlling previous (0) and next track (1). DPT 1.001.
+        Example: '1/0/2' (leave empty if unused).
+      default: ""
+    knx_track_control_invert:
+      name: Invert KNX Track Control Address
+      description: >
+        Invert the received value for track control (1 for previous, 0 for next).
+      default: false
+      selector:
+        boolean:
+    double_previous:
+      name: Double Previous Command
+      description: >
+        If true, sends two previous commands when the previous track control (0) is received.
+      default: false
+      selector:
+        boolean:
+
+    knx_play_pause_address:
+      name: KNX Play/Pause Group Address
+      description: >
+        Group address for controlling pause (0) and play (1). DPT 1.001.
+        Example: '1/0/3' (leave empty if unused).
+      default: ""
+    knx_play_pause_invert:
+      name: Invert KNX Play/Pause Address
+      description: >
+        Invert the received value for play/pause control (1 for pause, 0 for play).
+      default: false
+      selector:
+        boolean:
+
+    knx_play_pause_state_address:
+      name: KNX Play/Pause State Group Address
+      description: >
+        Group address to send feedback of the state of the media player (pause 0, play 1). DPT 1.001.
+        Example: '1/4/3' (leave empty if unused).
+      default: ""
+    knx_play_pause_state_invert:
+      name: Invert KNX Play/Pause State Address
+      description: >
+        Invert the sent value for play/pause state feedback (1 for pause, 0 for play).
+      default: false
+      selector:
+        boolean:
+
+mode: parallel
+max_exceeded: silent
+
+variables:
+  media_player_entity: !input media_player_entity
+  knx_track_control_address: !input knx_track_control_address
+  knx_track_control_invert: !input knx_track_control_invert
+  double_previous: !input double_previous
+  knx_play_pause_address: !input knx_play_pause_address
+  knx_play_pause_invert: !input knx_play_pause_invert
+  knx_play_pause_state_address: !input knx_play_pause_state_address
+  knx_play_pause_state_invert: !input knx_play_pause_state_invert
+
+trigger:
+  - platform: homeassistant
+    event: start
+    id: "initialize"
+  - platform: event
+    event_type: automation_reloaded
+    id: "initialize"
+  - platform: event
+    event_type: service_registered
+    event_data:
+      domain: knx
+      service: event_register
+    id: "initialize"
+  - platform: state
+    entity_id: !input media_player_entity
+    id: "media_player_entity"
+  - platform: event
+    event_type: knx_event
+    event_data:
+      destination: !input knx_track_control_address
+      telegramtype: GroupValueWrite
+      direction: Incoming
+    id: "knx_track_control_address"
+  - platform: event
+    event_type: knx_event
+    event_data:
+      destination: !input knx_play_pause_address
+      telegramtype: GroupValueWrite
+      direction: Incoming
+    id: "knx_play_pause_address"
+  - platform: event
+    event_type: knx_event
+    event_data:
+      destination: !input knx_play_pause_state_address
+      telegramtype: GroupValueRead
+      direction: Incoming
+    id: "knx_play_pause_state_address"
+
+action:
+  - choose:
+    # INITIALIZE - Register KNX addresses
+    - conditions:
+        - condition: trigger
+          id: "initialize"
+      sequence:
+        # Register KNX Track Control Address
+        - if:
+            - condition: template
+              value_template: "{{ knx_track_control_address != '' }}"
+          then:
+            - service: knx.event_register
+              data:
+                address: "{{ knx_track_control_address }}"
+        # Register KNX Play/Pause Address
+        - if:
+            - condition: template
+              value_template: "{{ knx_play_pause_address != '' }}"
+          then:
+            - service: knx.event_register
+              data:
+                address: "{{ knx_play_pause_address }}"
+        # Register KNX Play/Pause State Address
+        - if:
+            - condition: template
+              value_template: "{{ knx_play_pause_state_address != '' }}"
+          then:
+            - service: knx.event_register
+              data:
+                address: "{{ knx_play_pause_state_address }}"
+
+    # Handle KNX commands for track control
+    - conditions:
+        condition: template
+        value_template: "{{ trigger is defined and trigger.platform == 'event' and trigger.event.event_type == 'knx_event' and trigger.event.data.direction == 'Incoming' and trigger.event.data.destination == knx_track_control_address }}"
+      sequence:
+        - choose:
+            # Previous Track Command
+            - conditions:
+                condition: template
+                value_template: >
+                  {% if knx_track_control_invert %}
+                    {{ trigger.event.data.data | int(default=0) == 1 }}
+                  {% else %}
+                    {{ trigger.event.data.data | int(default=0) == 0 }}
+                  {% endif %}
+              sequence:
+                - service: media_player.media_previous_track
+                  target:
+                    entity_id: "{{ media_player_entity }}"
+                - if:
+                    - condition: template
+                      value_template: "{{ double_previous }}"
+                  then:
+                    - delay: '00:00:01'
+                    - service: media_player.media_previous_track
+                      target:
+                        entity_id: "{{ media_player_entity }}"
+            # Next Track Command
+            - conditions:
+                condition: template
+                value_template: >
+                  {% if knx_track_control_invert %}
+                    {{ trigger.event.data.data | int(default=0) == 0 }}
+                  {% else %}
+                    {{ trigger.event.data.data | int(default=0) == 1 }}
+                  {% endif %}
+              sequence:
+                - service: media_player.media_next_track
+                  target:
+                    entity_id: "{{ media_player_entity }}"
+
+    # Handle KNX commands for play/pause control
+    - conditions:
+        condition: template
+        value_template: "{{ trigger is defined and trigger.platform == 'event' and trigger.event.event_type == 'knx_event' and trigger.event.data.direction == 'Incoming' and trigger.event.data.destination == knx_play_pause_address }}"
+      sequence:
+        - choose:
+            # Pause Command
+            - conditions:
+                condition: template
+                value_template: >
+                  {% if knx_play_pause_invert %}
+                    {{ trigger.event.data.data | int(default=0) == 1 }}
+                  {% else %}
+                    {{ trigger.event.data.data | int(default=0) == 0 }}
+                  {% endif %}
+              sequence:
+                - service: media_player.media_pause
+                  target:
+                    entity_id: "{{ media_player_entity }}"
+            # Play Command
+            - conditions:
+                condition: template
+                value_template: >
+                  {% if knx_play_pause_invert %}
+                    {{ trigger.event.data.data | int(default=0) == 0 }}
+                  {% else %}
+                    {{ trigger.event.data.data | int(default=0) == 1 }}
+                  {% endif %}
+              sequence:
+                - service: media_player.media_play
+                  target:
+                    entity_id: "{{ media_player_entity }}"
+
+    # Handle KNX play/pause state feedback
+    - conditions:
+        condition: template
+        value_template: "{{ trigger is defined and trigger.platform == 'state' and trigger.entity_id == media_player_entity }}"
+      sequence:
+        - choose:
+            # Send state feedback when media player state changes
+            - conditions:
+                condition: template
+                value_template: "{{ knx_play_pause_state_address != '' }}"
+              sequence:
+                - choose:
+                    # Media Player is Paused
+                    - conditions:
+                        condition: template
+                        value_template: "{{ trigger.to_state.state == 'paused' }}"
+                      sequence:
+                        - service: knx.send
+                          data:
+                            address: "{{ knx_play_pause_state_address }}"
+                            payload: >
+                              {% if knx_play_pause_state_invert %}
+                                1
+                              {% else %}
+                                0
+                              {% endif %}
+                    # Media Player is Playing
+                    - conditions:
+                        condition: template
+                        value_template: "{{ trigger.to_state.state == 'playing' }}"
+                      sequence:
+                        - service: knx.send
+                          data:
+                            address: "{{ knx_play_pause_state_address }}"
+                            payload: >
+                              {% if knx_play_pause_state_invert %}
+                                0
+                              {% else %}
+                                1
+                              {% endif %}
+
+        # Send initial state feedback on startup
+        - conditions:
+            - condition: trigger
+              id: "initialize"
+            - condition: template
+              value_template: "{{ knx_play_pause_state_address != '' }}"
+          sequence:
+            - choose:
+                # Media Player is Paused
+                - conditions:
+                    condition: template
+                    value_template: "{{ is_state(media_player_entity, 'paused') }}"
+                  sequence:
+                    - service: knx.send
+                      data:
+                        address: "{{ knx_play_pause_state_address }}"
+                        payload: >
+                          {% if knx_play_pause_state_invert %}
+                            1
+                          {% else %}
+                            0
+                          {% endif %}
+                # Media Player is Playing
+                - conditions:
+                    condition: template
+                    value_template: "{{ is_state(media_player_entity, 'playing') }}"
+                  sequence:
+                    - service: knx.send
+                      data:
+                        address: "{{ knx_play_pause_state_address }}"
+                        payload: >
+                          {% if knx_play_pause_state_invert %}
+                            0
+                          {% else %}
+                            1
+                          {% endif %}
