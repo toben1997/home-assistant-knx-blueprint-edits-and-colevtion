@@ -1,5 +1,5 @@
 blueprint:
-  name: KNX - Media Player Playback Control v2024.01.5
+  name: KNX - Media Player Playback Control v2024.01.2
   description: |
     Use KNX to control playback options (previous/next track, pause/play) of a Home Assistant media player entity with optional state feedback.
     This blueprint allows you to select which media player should be controlled and provides input fields for the KNX group addresses:
@@ -8,7 +8,7 @@ blueprint:
     - One address for state feedback, notifying the KNX system whether the media player is playing or paused.
     Each address has an option to invert the received/sent values.
 
-    **Version**: 2024.01.5
+    **Version**: 2024.01.2
   author: ChatGPT
   source_url: https://example.com
   domain: automation
@@ -234,10 +234,10 @@ action:
     # Handle KNX play/pause state feedback
     - conditions:
         - condition: template
-          value_template: "{{ trigger.platform == 'state' and trigger.entity_id == media_player_entity }}"
+          value_template: "{{ trigger.platform == 'state' and trigger.entity_id == media_player_entity and trigger.to_state.state != trigger.from_state.state }}"
       sequence:
         - choose:
-            # Send state feedback when media player state changes
+            # Send play/pause state feedback
             - conditions:
                 - condition: template
                   value_template: "{{ knx_play_pause_state_address != '' }}"
@@ -261,44 +261,6 @@ action:
                     - conditions:
                         - condition: template
                           value_template: "{{ trigger.to_state.state == 'playing' }}"
-                      sequence:
-                        - service: knx.send
-                          data:
-                            address: "{{ knx_play_pause_state_address }}"
-                            payload: >
-                              {% if knx_play_pause_state_invert %}
-                                0
-                              {% else %}
-                                1
-                              {% endif %}
-
-        # Send initial state feedback on startup
-        - choose:
-            - conditions:
-                - condition: template
-                  value_template: "{{ knx_play_pause_state_address != '' }}"
-                - condition: trigger
-                  id: "initialize"
-              sequence:
-                - choose:
-                    # Media Player is Paused
-                    - conditions:
-                        - condition: template
-                          value_template: "{{ is_state(media_player_entity, 'paused') }}"
-                      sequence:
-                        - service: knx.send
-                          data:
-                            address: "{{ knx_play_pause_state_address }}"
-                            payload: >
-                              {% if knx_play_pause_state_invert %}
-                                1
-                              {% else %}
-                                0
-                              {% endif %}
-                    # Media Player is Playing
-                    - conditions:
-                        - condition: template
-                          value_template: "{{ is_state(media_player_entity, 'playing') }}"
                       sequence:
                         - service: knx.send
                           data:
