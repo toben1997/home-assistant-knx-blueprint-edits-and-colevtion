@@ -1,5 +1,5 @@
 blueprint:
-  name: KNX - Media Player Volume Control v2024.01.12
+  name: KNX - Media Player Volume Control v2024.01.14
   description: |
     Use KNX to control the volume of a Home Assistant media player entity with optional state feedback.
     This blueprint allows you to select which media player should be controlled and provides input fields for the KNX group addresses:
@@ -10,7 +10,7 @@ blueprint:
     - One address for volume level state feedback (0-100%).
     Each address has an option to invert the received/sent values.
 
-    **Version**: 2024.01.12
+    **Version**: 2024.01.14
   author: ChatGPT
   source_url: https://example.com
   domain: automation
@@ -300,7 +300,7 @@ action:
       sequence:
         - service: media_player.volume_set
           data:
-            volume_level: "{{ trigger.event.data.data | int(default=0) / 100 }}"
+            volume_level: "{{ trigger.event.data.data | float(default=0) / 100 }}"
           target:
             entity_id: "{{ media_player_entity }}"
 
@@ -330,6 +330,7 @@ action:
                               {% else %}
                                 1
                               {% endif %}
+                            type: "1.001"
                         - variables:
                             last_mute_state: true
                     # Media Player is Unmuted
@@ -346,6 +347,7 @@ action:
                               {% else %}
                                 0
                               {% endif %}
+                            type: "1.001"
                         - variables:
                             last_mute_state: false
 
@@ -365,5 +367,6 @@ action:
                     address: "{{ knx_volume_level_state_address }}"
                     payload: >
                       {{ (state_attr(media_player_entity, 'volume_level') * 100) | int(default=0) }}
+                    type: "5.001"
                 - variables:
                     last_volume_level: "{{ state_attr(media_player_entity, 'volume_level') | float }}"
