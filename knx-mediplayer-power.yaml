@@ -1,5 +1,5 @@
 blueprint:
-  name: KNX - Media Player Power Control v2024.01.2
+  name: KNX - Media Player Power Control v2024.01.3
   description: |
     Use KNX to control the power state (on/off) of a Home Assistant media player entity with optional state feedback.
     This blueprint allows you to select which media player should be controlled and provides input fields for the KNX group addresses:
@@ -7,7 +7,7 @@ blueprint:
     - One address for power state feedback (0 for off, 1 for on).
     Each address has an option to invert the received/sent values.
 
-    **Version**: 2024.01.2
+    **Version**: 2024.01.3
   author: ChatGPT
   source_url: https://example.com
   domain: automation
