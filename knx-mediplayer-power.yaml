@@ -1,7 +1,11 @@
 blueprint:
   name: KNX - Media Player Power Control
   description: |
-    Use KNX to control the power (on/off) of a Home Assistant media player entity with optional state feedback
+    Use KNX to control the power (on/off) of a Home Assistant media player entity with optional state feedback.
+    This blueprint allows you to select which media player should be controlled and provides two input fields for the KNX group addresses:
+    - The first KNX group address is read, and depending on the value (0 or 1), the media player is turned on or off.
+    - The second group address notifies the KNX system whether the media player is turned on or off by sending a value (0 for off, 1 for on).
+
     **Version**: 2024.01.1
   author: ChatGPT
   source_url: https://example.com
@@ -10,22 +14,36 @@ blueprint:
     media_player_entity:
       name: Media Player Entity
       description: >
-        Choose the media player to control and expose with KNX
+        Choose the media player to control via KNX.
       selector:
         entity:
           domain: media_player
     knx_switch_address:
       name: KNX Switch Group Address
       description: >
-        Group address for switching the media player on and off. DPT 1.001
-        Example: '1/0/1' (leave empty if unused)
+        Group address for switching the media player on and off. DPT 1.001.
+        Example: '1/0/1' (leave empty if unused).
       default: ""
+    knx_switch_invert:
+      name: Invert KNX Switch Address
+      description: >
+        Invert the received value for switching (1 to turn off, 0 to turn on).
+      default: false
+      selector:
+        boolean:
     knx_state_address:
       name: KNX State Group Address
       description: >
-        Group address to send feedback of the state of the media player. DPT 1.001
-        Example: '1/4/1' (leave empty if unused)
+        Group address to send feedback of the state of the media player. DPT 1.001.
+        Example: '1/4/1' (leave empty if unused).
       default: ""
+    knx_state_invert:
+      name: Invert KNX State Address
+      description: >
+        Invert the sent value for state feedback (1 for off, 0 for on).
+      default: false
+      selector:
+        boolean:
 
 mode: parallel
 max_exceeded: silent
@@ -33,7 +51,9 @@ max_exceeded: silent
 variables:
   media_player_entity: !input media_player_entity
   knx_switch_address: !input knx_switch_address
+  knx_switch_invert: !input knx_switch_invert
   knx_state_address: !input knx_state_address
+  knx_state_invert: !input knx_state_invert
 
 trigger:
   - platform: homeassistant
@@ -68,12 +88,12 @@ trigger:
 
 action:
   - choose:
-    # INITIALIZE
+    # INITIALIZE - Register KNX addresses
     - conditions:
         - condition: trigger
           id: "initialize"
       sequence:
-        # KNX REGISTER
+        # Register KNX Switch Address
         - if:
             - condition: template
               value_template: "{{ knx_switch_address != '' }}"
@@ -81,6 +101,7 @@ action:
             - service: knx.event_register
               data:
                 address: "{{ knx_switch_address }}"
+        # Register KNX State Address
         - if:
             - condition: template
               value_template: "{{ knx_state_address != '' }}"
@@ -89,14 +110,13 @@ action:
               data:
                 address: "{{ knx_state_address }}"
 
-    # KNX TELEGRAMS
+    # Handle KNX commands
     - conditions:
         condition: template
         value_template: "{{ trigger is defined and trigger.platform == 'event' and trigger.event.event_type == 'knx_event' and trigger.event.data.direction == 'Incoming' and trigger.event.data.destination != '' }}"
       sequence:
         - choose:
-
-          # SWITCH command
+          # Handle KNX Switch Command
           - conditions:
               - condition: trigger
                 id: "knx_switch_address"
@@ -104,22 +124,34 @@ action:
                 value_template: "{{ knx_switch_address != '' }}"
             sequence:
               - choose:
+                # Turn Off Media Player
                 - conditions:
                     - condition: template
-                      value_template: "{{ trigger.event.data.data | int(default=0) == 0 }}"
+                      value_template: >
+                        {% if knx_switch_invert %}
+                          {{ trigger.event.data.data | int(default=0) == 1 }}
+                        {% else %}
+                          {{ trigger.event.data.data | int(default=0) == 0 }}
+                        {% endif %}
                   sequence:
                     - service: media_player.turn_off
                       target:
                         entity_id: "{{ media_player_entity }}"
+                # Turn On Media Player
                 - conditions:
                     - condition: template
-                      value_template: "{{ trigger.event.data.data | int(default=0) == 1 }}"
+                      value_template: >
+                        {% if knx_switch_invert %}
+                          {{ trigger.event.data.data | int(default=0) == 0 }}
+                        {% else %}
+                          {{ trigger.event.data.data | int(default=0) == 1 }}
+                        {% endif %}
                   sequence:
                     - service: media_player.turn_on
                       target:
                         entity_id: "{{ media_player_entity }}"
-                        
-          # SWITCH read
+          
+          # Handle KNX State Read Command
           - conditions:
               - condition: trigger
                 id: "knx_state_address"
@@ -142,31 +174,41 @@ action:
                   - service: knx.send
                     data:
                       address: "{{ knx_state_address }}"
-                      payload: 0
+                      payload: >
+                        {% if knx_state_invert %}
+                          1
+                        {% else %}
+                          0
+                        {% endif %}
                       response: true
                 else:
                   - service: knx.send
                     data:
                       address: "{{ knx_state_address }}"
-                      payload: 1
+                      payload: >
+                        {% if knx_state_invert %}
+                          0
+                        {% else %}
+                          1
+                        {% endif %}
                       response: true
 
-    # STATE FEEDBACK
+    # Send state feedback on media player state change
     - conditions:
         - condition: trigger
           id: "media_player_entity"
         - condition: template
           value_template: "{{ media_player_entity != '' }}"
       sequence:
-
-        # STATE change
+        # Send state feedback when media player state changes
         - if:
             - condition: template
               value_template: "{{ trigger.to_state.state != trigger.from_state.state }}"
             - condition: template
               value_template: "{{ knx_state_address != '' }}"
           then:
-            - choose :
+            - choose:
+              # Media Player is Off
               - conditions:
                   condition: template
                   value_template: "{{ trigger.to_state.state == 'off' }}"
@@ -174,7 +216,13 @@ action:
                   - service: knx.send
                     data:
                       address: "{{ knx_state_address }}"
-                      payload: 0
+                      payload: >
+                        {% if knx_state_invert %}
+                          1
+                        {% else %}
+                          0
+                        {% endif %}
+              # Media Player is On (idle, playing, paused, or on)
               - conditions:
                   condition: template
                   value_template: "{{ trigger.to_state.state in ['on', 'idle', 'playing', 'paused'] }}"
@@ -182,13 +230,19 @@ action:
                   - service: knx.send
                     data:
                       address: "{{ knx_state_address }}"
-                      payload: 1
+                      payload: >
+                        {% if knx_state_invert %}
+                          0
+                        {% else %}
+                          1
+                        {% endif %}
 
-        # ALWAYS SEND FEEDBACK ON STATE CHANGE
+        # Always send feedback on state change
         - condition: template
           value_template: "{{ knx_state_address != '' }}"
       sequence:
         - choose:
+            # Media Player is Off
             - conditions:
                 condition: template
                 value_template: "{{ is_state(media_player_entity, 'off') }}"
@@ -196,7 +250,13 @@ action:
                 - service: knx.send
                   data:
                     address: "{{ knx_state_address }}"
-                    payload: 0
+                    payload: >
+                      {% if knx_state_invert %}
+                        1
+                      {% else %}
+                        0
+                      {% endif %}
+            # Media Player is On (idle, playing, paused, or on)
             - conditions:
                 condition: template
                 value_template: "{{ is_state(media_player_entity, 'on') or is_state(media_player_entity, 'idle') or is_state(media_player_entity, 'playing') or is_state(media_player_entity, 'paused') }}"
@@ -204,4 +264,9 @@ action:
                 - service: knx.send
                   data:
                     address: "{{ knx_state_address }}"
-                    payload: 1
+                    payload: >
+                      {% if knx_state_invert %}
+                        0
+                      {% else %}
+                        1
+                      {% endif %}
