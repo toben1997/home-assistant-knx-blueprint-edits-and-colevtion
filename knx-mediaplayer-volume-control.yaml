@@ -1,5 +1,5 @@
 blueprint:
-  name: KNX - Media Player Volume Control v2024.01.8
+  name: KNX - Media Player Volume Control v2024.01.9
   description: |
     Use KNX to control the volume of a Home Assistant media player entity with optional state feedback.
     This blueprint allows you to select which media player should be controlled and provides input fields for the KNX group addresses:
@@ -10,7 +10,7 @@ blueprint:
     - One address for volume level state feedback (0-100%).
     Each address has an option to invert the received/sent values.
 
-    **Version**: 2024.01.8
+    **Version**: 2024.01.9
   author: ChatGPT
   source_url: https://example.com
   domain: automation
@@ -105,7 +105,7 @@ variables:
   knx_mute_state_invert: !input knx_mute_state_invert
   knx_volume_level_address: !input knx_volume_level_address
   knx_volume_level_state_address: !input knx_volume_level_state_address
-  last_volume_level: "{{ state_attr(media_player_entity, 'volume_level') }}"
+  last_volume_level: "{{ state_attr(media_player_entity, 'volume_level') | float }}"
   last_mute_state: "{{ is_state_attr(media_player_entity, 'is_volume_muted', true) }}"
 
 trigger:
@@ -214,7 +214,7 @@ action:
                     address: "{{ knx_volume_level_state_address }}"
         # Set initial state
         - variables:
-            last_volume_level: "{{ state_attr(media_player_entity, 'volume_level') }}"
+            last_volume_level: "{{ state_attr(media_player_entity, 'volume_level') | float }}"
             last_mute_state: "{{ is_state_attr(media_player_entity, 'is_volume_muted', true) }}"
 
     # Handle KNX commands for volume step control
@@ -366,4 +366,4 @@ action:
                     payload: >
                       {{ (state_attr(media_player_entity, 'volume_level') * 100) | int(default=0) }}
                 - variables:
-                    last_volume_level: "{{ state_attr(media_player_entity, 'volume_level') }}"
+                    last_volume_level: "{{ state_attr(media_player_entity, 'volume_level') | float }}"
