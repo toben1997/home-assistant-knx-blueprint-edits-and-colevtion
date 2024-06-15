@@ -1,0 +1,63 @@
+blueprint:
+  name: KNX Schalter für Media Player
+  description: Verwende einen KNX-Schalter, um einen Media Player ein- und auszuschalten.
+  domain: automation
+  input:
+    media_player:
+      name: Media Player
+      description: Die Media Player-Entity, die ein- oder ausgeschaltet werden soll.
+      selector:
+        entity:
+          domain: media_player
+    knx_group_address_input:
+      name: KNX Gruppenadresse Eingang
+      description: Die KNX-Gruppenadresse, die den Zustand liest (0 für Aus, 1 für An).
+      selector:
+        text:
+    knx_group_address_output:
+      name: KNX Gruppenadresse Ausgang
+      description: Die KNX-Gruppenadresse, die den Zustand zurücksendet (0 für Aus, 1 für An).
+      selector:
+        text:
+  source_url: https://github.com/home-assistant/core
+
+trigger:
+  - platform: knx
+    address: !input knx_group_address_input
+    type: value
+
+condition: []
+
+action:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: '1'
+            platform: knx
+            address: !input knx_group_address_input
+            type: value
+            payload: 1
+        sequence:
+          - service: media_player.turn_on
+            target:
+              entity_id: !input media_player
+          - service: knx.send
+            data:
+              address: !input knx_group_address_output
+              payload: 1
+      - conditions:
+          - condition: trigger
+            id: '0'
+            platform: knx
+            address: !input knx_group_address_input
+            type: value
+            payload: 0
+        sequence:
+          - service: media_player.turn_off
+            target:
+              entity_id: !input media_player
+          - service: knx.send
+            data:
+              address: !input knx_group_address_output
+              payload: 0
+    default: []
