@@ -1,5 +1,5 @@
 blueprint:
-  name: KNX - Media Player Volume Receiver v2024.01.1
+  name: KNX - Media Player Volume Receiver v2024.01.11
   description: |
     This blueprint sets the volume level of a selected media player entity based on the percentage received from a specified KNX group address. It uses KNX data type 5.001.
   domain: automation
@@ -24,12 +24,12 @@ variables:
   media_player_entity: !input media_player_entity
 
 trigger:
-  - platform: knx
-    address: !input knx_address
+  - platform: state
+    entity_id: sensor.knx_sensor # Setzen Sie dies auf den entsprechenden KNX-Sensor in Ihrem System
 
 action:
   - service: media_player.volume_set
     target:
       entity_id: "{{ media_player_entity }}"
     data:
-      volume_level: "{{ trigger.event.data.payload | int / 100 }}"
+      volume_level: "{{ trigger.to_state.state | int / 100 }}"
