@@ -52,4 +52,3 @@ action:
             data:
               address: !input knx_group_address_output
               payload: 0
-    default: []
