@@ -1,0 +1,36 @@
+blueprint:
+  name: KNX - Media Player Volume Percentage Sender v2024.01.9
+  description: |
+    This blueprint sends the volume level percentage from a selected media player entity to a specified KNX group address whenever the volume level changes. It uses KNX data type 5.001.
+  domain: automation
+  input:
+    knx_address:
+      name: KNX Group Address
+      description: The KNX group address to send the volume level percentage.
+      selector:
+        text:
+    media_player_entity:
+      name: Media Player Entity
+      description: The media player entity to monitor for volume level changes.
+      selector:
+        entity:
+          domain: media_player
+
+mode: parallel
+max_exceeded: silent
+
+variables:
+  knx_address: !input knx_address
+  media_player_entity: !input media_player_entity
+
+trigger:
+  - platform: state
+    entity_id: !input media_player_entity
+    attribute: volume_level
+
+action:
+  - service: knx.send
+    data:
+      address: "{{ knx_address }}"
+      payload: "{{ (trigger.to_state.attributes.volume_level * 100) | int }}"
+      type: "percent"
