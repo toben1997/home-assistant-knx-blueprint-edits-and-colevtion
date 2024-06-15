@@ -498,7 +498,10 @@ action:
                   volume_level: >
                     {{ [
                       0.0,
-                      [1.0, state_attr(media_player_entity, 'volume_level') | float + (volume_step_size / 100.0) * (1 if trigger.event.data.data | int(default=0) == 1 else -1)] | min
+                      [
+                        1.0,
+                        state_attr(media_player_entity, 'volume_level') | float + (volume_step_size / 100.0) * (1 if trigger.event.data.data | int(default=0) == 1 else -1)
+                      ] | min
                     ] | max }}
           # SOURCE command
           - conditions:
