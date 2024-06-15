@@ -1,5 +1,5 @@
 blueprint:
-  name: KNX - Media Player Playback Control v2024.01.4
+  name: KNX - Media Player Playback Control v2024.01.5
   description: |
     Use KNX to control playback options (previous/next track, pause/play) of a Home Assistant media player entity with optional state feedback.
     This blueprint allows you to select which media player should be controlled and provides input fields for the KNX group addresses:
@@ -8,7 +8,7 @@ blueprint:
     - One address for state feedback, notifying the KNX system whether the media player is playing or paused.
     Each address has an option to invert the received/sent values.
 
-    **Version**: 2024.01.4
+    **Version**: 2024.01.5
   author: ChatGPT
   source_url: https://example.com
   domain: automation
@@ -82,6 +82,7 @@ variables:
   knx_play_pause_invert: !input knx_play_pause_invert
   knx_play_pause_state_address: !input knx_play_pause_state_address
   knx_play_pause_state_invert: !input knx_play_pause_state_invert
+  last_play_pause_state: none
 
 trigger:
   - platform: homeassistant
@@ -123,7 +124,7 @@ trigger:
 
 action:
   - choose:
-    # INITIALIZE - Register KNX addresses
+    # INITIALIZE - Register KNX addresses and set initial state
     - conditions:
         - condition: trigger
           id: "initialize"
@@ -155,6 +156,14 @@ action:
                 - service: knx.event_register
                   data:
                     address: "{{ knx_play_pause_state_address }}"
+        # Set initial state
+        - service: input_boolean.turn_on
+          data:
+            entity_id: "{{ media_player_entity }}"
+          target:
+            entity_id: "{{ media_player_entity }}"
+        - variables:
+            last_play_pause_state: "{{ states(media_player_entity) }}"
 
     # Handle KNX commands for track control
     - conditions:
@@ -231,17 +240,16 @@ action:
                   target:
                     entity_id: "{{ media_player_entity }}"
 
-    # Handle KNX play/pause state feedback with delay to ensure stability
+    # Handle KNX play/pause state feedback with change detection
     - conditions:
         - condition: template
-          value_template: "{{ trigger.platform == 'state' and trigger.entity_id == media_player_entity }}"
+          value_template: "{{ trigger.platform == 'state' and trigger.entity_id == media_player_entity and trigger.to_state.state != trigger.from_state.state }}"
       sequence:
-        - delay: '00:00:02'  # Adding delay to check if the state is stable
         - choose:
-            # Send play/pause state feedback
+            # Send play/pause state feedback only if the state has changed
             - conditions:
                 - condition: template
-                  value_template: "{{ knx_play_pause_state_address != '' and is_state(media_player_entity, trigger.to_state.state) }}"
+                  value_template: "{{ knx_play_pause_state_address != '' and states(media_player_entity) != last_play_pause_state }}"
               sequence:
                 - choose:
                     # Media Player is Paused
@@ -258,6 +266,8 @@ action:
                               {% else %}
                                 0
                               {% endif %}
+                        - variables:
+                            last_play_pause_state: 'paused'
                     # Media Player is Playing
                     - conditions:
                         - condition: template
@@ -272,3 +282,5 @@ action:
                               {% else %}
                                 1
                               {% endif %}
+                        - variables:
+                            last_play_pause_state: 'playing'
