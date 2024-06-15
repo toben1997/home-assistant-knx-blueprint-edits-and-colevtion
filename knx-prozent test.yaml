@@ -1,57 +1,36 @@
 blueprint:
-  name: KNX - Alternating Percentage Sender v2024.01.8
+  name: KNX - Media Player Volume Percentage Sender v2024.01.9
   description: |
-    This blueprint sends alternating 10% and 30% values to a specified KNX group address every 5 seconds using KNX data type 5.001.
+    This blueprint sends the volume level percentage from a selected media player entity to a specified KNX group address whenever the volume level changes. It uses KNX data type 5.001.
   domain: automation
   input:
     knx_address:
       name: KNX Group Address
-      description: The KNX group address to send the alternating values.
+      description: The KNX group address to send the volume level percentage.
       selector:
         text:
-    send_interval:
-      name: Send Interval
-      description: The interval in seconds to send the alternating values.
-      default: 5
+    media_player_entity:
+      name: Media Player Entity
+      description: The media player entity to monitor for volume level changes.
       selector:
-        number:
-          min: 1
-          max: 60
-          unit_of_measurement: seconds
+        entity:
+          domain: media_player
 
 mode: parallel
 max_exceeded: silent
 
 variables:
   knx_address: !input knx_address
-  send_interval: !input send_interval
-  current_value: 10
+  media_player_entity: !input media_player_entity
 
 trigger:
-  - platform: time_pattern
-    seconds: "/5"
+  - platform: state
+    entity_id: !input media_player_entity
+    attribute: volume_level
 
 action:
-  - choose:
-      - conditions:
-          - condition: template
-            value_template: "{{ current_value == 10 }}"
-        sequence:
-          - service: knx.send
-            data:
-              address: "{{ knx_address }}"
-              payload: 30
-              type: "percent"
-          - variables:
-              current_value: 30
-      - conditions:
-          - condition: template
-            value_template: "{{ current_value == 30 }}"
-        sequence:
-          - service: knx.send
-            data:
-              address: "{{ knx_address }}"
-              payload: 10
-              type: "percent"
-          - variables:
-              current_value: 10
+  - service: knx.send
+    data:
+      address: "{{ knx_address }}"
+      payload: "{{ (trigger.to_state.attributes.volume_level * 100) | int }}"
+      type: "percent"
