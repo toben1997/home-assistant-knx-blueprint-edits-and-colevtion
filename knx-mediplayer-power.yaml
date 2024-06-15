@@ -31,12 +31,8 @@ condition: []
 action:
   - choose:
       - conditions:
-          - condition: trigger
-            id: '1'
-            platform: knx
-            address: !input knx_group_address_input
-            type: value
-            payload: 1
+          - condition: template
+            value_template: "{{ trigger.payload == 1 }}"
         sequence:
           - service: media_player.turn_on
             target:
@@ -46,12 +42,8 @@ action:
               address: !input knx_group_address_output
               payload: 1
       - conditions:
-          - condition: trigger
-            id: '0'
-            platform: knx
-            address: !input knx_group_address_input
-            type: value
-            payload: 0
+          - condition: template
+            value_template: "{{ trigger.payload == 0 }}"
         sequence:
           - service: media_player.turn_off
             target:
