@@ -1,8 +1,8 @@
 blueprint:
-  name: KNX - Cover control one Adrass
+  name: KNX - Cover Control One Address v2024.01.4
   description: |
-    Use KNX to control a Home Assistant cover entity with specified group addresses for open, close, stop, and position commands. Optionally invert the position value.
-    **Version**: 2024.01.3
+    Use KNX to control a Home Assistant cover entity with specified group addresses for open, close, stop, and position commands. Optionally invert the position value and open/close values.
+    **Version**: 2024.01.4
   author: kalhimeo
   domain: automation
   input:
@@ -16,6 +16,12 @@ blueprint:
       name: Open/Close group address
       description: Group address for opening and closing the cover. DPT 1.001
       default: ""
+    invert_open_close:
+      name: Invert Open/Close Address
+      description: Invert the received value for open/close control (0 for open, 1 for close).
+      default: false
+      selector:
+        boolean:
     stop_address:
       name: Stop group address
       description: Group address for stopping the cover. DPT 1.001
@@ -41,6 +47,7 @@ max_exceeded: silent
 variables:
   cover_entity: !input cover_entity
   open_close_address: !input open_close_address
+  invert_open_close: !input invert_open_close
   stop_address: !input stop_address
   position_address: !input position_address
   position_state_address: !input position_state_address
@@ -119,14 +126,24 @@ action:
               - choose:
                 - conditions:
                     - condition: template
-                      value_template: "{{ trigger.event.data.data == 1 }}"
+                      value_template: >
+                        {% if invert_open_close %}
+                          {{ trigger.event.data.data == 0 }}
+                        {% else %}
+                          {{ trigger.event.data.data == 1 }}
+                        {% endif %}
                   sequence:
                     - service: cover.open_cover
                       target:
                         entity_id: "{{ cover_entity }}"
                 - conditions:
                     - condition: template
-                      value_template: "{{ trigger.event.data.data == 0 }}"
+                      value_template: >
+                        {% if invert_open_close %}
+                          {{ trigger.event.data.data == 1 }}
+                        {% else %}
+                          {{ trigger.event.data.data == 0 }}
+                        {% endif %}
                   sequence:
                     - service: cover.close_cover
                       target:
