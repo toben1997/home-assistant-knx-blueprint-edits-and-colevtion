@@ -1,5 +1,5 @@
 blueprint:
-  name: KNX - Media Player Playback Control v2024.01.2
+  name: KNX - Media Player Playback Control v2024.01.3
   description: |
     Use KNX to control playback options (previous/next track, pause/play) of a Home Assistant media player entity with optional state feedback.
     This blueprint allows you to select which media player should be controlled and provides input fields for the KNX group addresses:
@@ -8,7 +8,7 @@ blueprint:
     - One address for state feedback, notifying the KNX system whether the media player is playing or paused.
     Each address has an option to invert the received/sent values.
 
-    **Version**: 2024.01.2
+    **Version**: 2024.01.3
   author: ChatGPT
   source_url: https://example.com
   domain: automation
@@ -155,19 +155,19 @@ action:
 
     # Handle KNX commands for track control
     - conditions:
-        condition: template
-        value_template: "{{ trigger is defined and trigger.platform == 'event' and trigger.event.event_type == 'knx_event' and trigger.event.data.direction == 'Incoming' and trigger.event.data.destination == knx_track_control_address }}"
+        - condition: template
+          value_template: "{{ trigger.platform == 'event' and trigger.event.event_type == 'knx_event' and trigger.event.data.direction == 'Incoming' and trigger.event.data.destination == knx_track_control_address }}"
       sequence:
         - choose:
             # Previous Track Command
             - conditions:
-                condition: template
-                value_template: >
-                  {% if knx_track_control_invert %}
-                    {{ trigger.event.data.data | int(default=0) == 1 }}
-                  {% else %}
-                    {{ trigger.event.data.data | int(default=0) == 0 }}
-                  {% endif %}
+                - condition: template
+                  value_template: >
+                    {% if knx_track_control_invert %}
+                      {{ trigger.event.data.data | int(default=0) == 1 }}
+                    {% else %}
+                      {{ trigger.event.data.data | int(default=0) == 0 }}
+                    {% endif %}
               sequence:
                 - service: media_player.media_previous_track
                   target:
@@ -182,13 +182,13 @@ action:
                         entity_id: "{{ media_player_entity }}"
             # Next Track Command
             - conditions:
-                condition: template
-                value_template: >
-                  {% if knx_track_control_invert %}
-                    {{ trigger.event.data.data | int(default=0) == 0 }}
-                  {% else %}
-                    {{ trigger.event.data.data | int(default=0) == 1 }}
-                  {% endif %}
+                - condition: template
+                  value_template: >
+                    {% if knx_track_control_invert %}
+                      {{ trigger.event.data.data | int(default=0) == 0 }}
+                    {% else %}
+                      {{ trigger.event.data.data | int(default=0) == 1 }}
+                    {% endif %}
               sequence:
                 - service: media_player.media_next_track
                   target:
@@ -196,32 +196,32 @@ action:
 
     # Handle KNX commands for play/pause control
     - conditions:
-        condition: template
-        value_template: "{{ trigger is defined and trigger.platform == 'event' and trigger.event.event_type == 'knx_event' and trigger.event.data.direction == 'Incoming' and trigger.event.data.destination == knx_play_pause_address }}"
+        - condition: template
+          value_template: "{{ trigger.platform == 'event' and trigger.event.event_type == 'knx_event' and trigger.event.data.direction == 'Incoming' and trigger.event.data.destination == knx_play_pause_address }}"
       sequence:
         - choose:
             # Pause Command
             - conditions:
-                condition: template
-                value_template: >
-                  {% if knx_play_pause_invert %}
-                    {{ trigger.event.data.data | int(default=0) == 1 }}
-                  {% else %}
-                    {{ trigger.event.data.data | int(default=0) == 0 }}
-                  {% endif %}
+                - condition: template
+                  value_template: >
+                    {% if knx_play_pause_invert %}
+                      {{ trigger.event.data.data | int(default=0) == 1 }}
+                    {% else %}
+                      {{ trigger.event.data.data | int(default=0) == 0 }}
+                    {% endif %}
               sequence:
                 - service: media_player.media_pause
                   target:
                     entity_id: "{{ media_player_entity }}"
             # Play Command
             - conditions:
-                condition: template
-                value_template: >
-                  {% if knx_play_pause_invert %}
-                    {{ trigger.event.data.data | int(default=0) == 0 }}
-                  {% else %}
-                    {{ trigger.event.data.data | int(default=0) == 1 }}
-                  {% endif %}
+                - condition: template
+                  value_template: >
+                    {% if knx_play_pause_invert %}
+                      {{ trigger.event.data.data | int(default=0) == 0 }}
+                    {% else %}
+                      {{ trigger.event.data.data | int(default=0) == 1 }}
+                    {% endif %}
               sequence:
                 - service: media_player.media_play
                   target:
@@ -230,7 +230,7 @@ action:
     # Handle KNX play/pause state feedback
     - conditions:
         - condition: template
-          value_template: "{{ trigger is defined and trigger.platform == 'state' and trigger.entity_id == media_player_entity }}"
+          value_template: "{{ trigger.platform == 'state' and trigger.entity_id == media_player_entity }}"
       sequence:
         - choose:
             # Send state feedback when media player state changes
