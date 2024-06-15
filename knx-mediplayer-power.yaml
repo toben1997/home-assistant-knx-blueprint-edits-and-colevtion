@@ -1,5 +1,5 @@
 blueprint:
-  name: KNX - Media Player Power Control v2024.01.4
+  name: KNX - Media Player Power Control v2024.01.5
   description: |
     Use KNX to control the power state (on/off) of a Home Assistant media player entity with optional state feedback.
     This blueprint allows you to select which media player should be controlled and provides input fields for the KNX group addresses:
@@ -7,7 +7,7 @@ blueprint:
     - One address for power state feedback (0 for off, 1 for on).
     Each address has an option to invert the received/sent values.
 
-    **Version**: 2024.01.4
+    **Version**: 2024.01.5
   author: ChatGPT
   source_url: https://example.com
   domain: automation
@@ -57,6 +57,7 @@ variables:
   knx_power_invert: !input knx_power_invert
   knx_power_state_address: !input knx_power_state_address
   knx_power_state_invert: !input knx_power_state_invert
+  last_power_state: none
 
 trigger:
   - platform: homeassistant
@@ -91,7 +92,7 @@ trigger:
 
 action:
   - choose:
-    # INITIALIZE - Register KNX addresses
+    # INITIALIZE - Register KNX addresses and set initial state
     - conditions:
         - condition: trigger
           id: "initialize"
@@ -114,6 +115,14 @@ action:
                 - service: knx.event_register
                   data:
                     address: "{{ knx_power_state_address }}"
+        # Set initial state
+        - service: input_boolean.turn_on
+          data:
+            entity_id: "{{ media_player_entity }}"
+          target:
+            entity_id: "{{ media_player_entity }}"
+        - variables:
+            last_power_state: "{{ states(media_player_entity) }}"
 
     # Handle KNX commands for power control
     - conditions:
@@ -148,17 +157,16 @@ action:
                   target:
                     entity_id: "{{ media_player_entity }}"
 
-    # Handle KNX power state feedback with delay to ensure stability
+    # Handle KNX power state feedback with change detection
     - conditions:
         - condition: template
-          value_template: "{{ trigger.platform == 'state' and trigger.entity_id == media_player_entity }}"
+          value_template: "{{ trigger.platform == 'state' and trigger.entity_id == media_player_entity and trigger.to_state.state != trigger.from_state.state }}"
       sequence:
-        - delay: '00:00:02'  # Adding delay to check if the state is stable
         - choose:
-            # Send power state feedback
+            # Send power state feedback only if the state has changed
             - conditions:
                 - condition: template
-                  value_template: "{{ knx_power_state_address != '' and is_state(media_player_entity, trigger.to_state.state) }}"
+                  value_template: "{{ knx_power_state_address != '' and states(media_player_entity) != last_power_state }}"
               sequence:
                 - choose:
                     # Media Player is Off
@@ -175,6 +183,8 @@ action:
                               {% else %}
                                 0
                               {% endif %}
+                        - variables:
+                            last_power_state: 'off'
                     # Media Player is On
                     - conditions:
                         - condition: template
@@ -189,3 +199,5 @@ action:
                               {% else %}
                                 1
                               {% endif %}
+                        - variables:
+                            last_power_state: 'on'
