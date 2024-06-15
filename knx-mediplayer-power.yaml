@@ -1,54 +1,185 @@
 blueprint:
-  name: KNX Schalter für Media Player
-  description: Verwende einen KNX-Schalter, um einen Media Player ein- und auszuschalten.
+  name: KNX - Media Player control
+  description: |
+    Use KNX to control a Home Assistant media player entity with optional state feedback
+    **Version**: 2024.01.1
+  author: ChatGPT
+  source_url: https://example.com
   domain: automation
   input:
-    media_player:
-      name: Media Player
-      description: Die Media Player-Entity, die ein- oder ausgeschaltet werden soll.
+    media_player_entity:
+      name: Media Player Entity
+      description: >
+        Choose the media player to control and expose with KNX
       selector:
         entity:
           domain: media_player
-    knx_group_address_input:
-      name: KNX Gruppenadresse Eingang
-      description: Die KNX-Gruppenadresse, die den Zustand liest (0 für Aus, 1 für An).
-      selector:
-        text:
-    knx_group_address_output:
-      name: KNX Gruppenadresse Ausgang
-      description: Die KNX-Gruppenadresse, die den Zustand zurücksendet (0 für Aus, 1 für An).
-      selector:
-        text:
-  source_url: https://github.com/home-assistant/core
+    knx_switch_address:
+      name: KNX Switch Group Address
+      description: >
+        Group address for switching the media player on and off. DPT 1.001
+        Example: '1/0/1' (leave empty if unused)
+      default: ""
+    knx_state_address:
+      name: KNX State Group Address
+      description: >
+        Group address to send feedback of the state of the media player. DPT 1.001
+        Example: '1/4/1' (leave empty if unused)
+      default: ""
+
+mode: parallel
+max_exceeded: silent
+
+variables:
+  media_player_entity: !input media_player_entity
+  knx_switch_address: !input knx_switch_address
+  knx_state_address: !input knx_state_address
 
 trigger:
-  - platform: knx
-    address: !input knx_group_address_input
-    type: value
-
-condition: []
+  - platform: homeassistant
+    event: start
+    id: "initialize"
+  - platform: event
+    event_type: automation_reloaded
+    id: "initialize"
+  - platform: event
+    event_type: service_registered
+    event_data:
+      domain: knx
+      service: event_register
+    id: "initialize"
+  - platform: state
+    entity_id: !input media_player_entity
+    id: "media_player_entity"
+  - platform: event
+    event_type: knx_event
+    event_data:
+      destination: !input knx_switch_address
+      telegramtype: GroupValueWrite
+      direction: Incoming
+    id: "knx_switch_address"
+  - platform: event
+    event_type: knx_event
+    event_data:
+      destination: !input knx_state_address
+      telegramtype: GroupValueRead
+      direction: Incoming
+    id: "knx_state_address"
 
 action:
   - choose:
-      - conditions:
-          - condition: template
-            value_template: "{{ trigger.payload == 1 }}"
-        sequence:
-          - service: media_player.turn_on
-            target:
-              entity_id: !input media_player
-          - service: knx.send
-            data:
-              address: !input knx_group_address_output
-              payload: 1
-      - conditions:
-          - condition: template
-            value_template: "{{ trigger.payload == 0 }}"
-        sequence:
-          - service: media_player.turn_off
-            target:
-              entity_id: !input media_player
-          - service: knx.send
-            data:
-              address: !input knx_group_address_output
-              payload: 0
+    # INITIALIZE
+    - conditions:
+        - condition: trigger
+          id: "initialize"
+      sequence:
+        # KNX REGISTER
+        - if:
+            - condition: template
+              value_template: "{{ knx_switch_address != '' }}"
+          then:
+            - service: knx.event_register
+              data:
+                address: "{{ knx_switch_address }}"
+        - if:
+            - condition: template
+              value_template: "{{ knx_state_address != '' }}"
+          then:
+            - service: knx.event_register
+              data:
+                address: "{{ knx_state_address }}"
+
+    # KNX TELEGRAMS
+    - conditions:
+        condition: template
+        value_template: "{{ trigger is defined and trigger.platform == 'event' and trigger.event.event_type == 'knx_event' and trigger.event.data.direction == 'Incoming' and trigger.event.data.destination != '' }}"
+      sequence:
+        - choose:
+
+          # SWITCH command
+          - conditions:
+              - condition: trigger
+                id: "knx_switch_address"
+              - condition: template
+                value_template: "{{ knx_switch_address != '' }}"
+            sequence:
+              - choose:
+                - conditions:
+                    - condition: template
+                      value_template: "{{ trigger.event.data.data | int(default=0) == 0 }}"
+                  sequence:
+                    - service: media_player.turn_off
+                      target:
+                        entity_id: "{{ media_player_entity }}"
+                - conditions:
+                    - condition: template
+                      value_template: "{{ trigger.event.data.data | int(default=0) == 1 }}"
+                  sequence:
+                    - service: media_player.turn_on
+                      target:
+                        entity_id: "{{ media_player_entity }}"
+                        
+          # SWITCH read
+          - conditions:
+              - condition: trigger
+                id: "knx_state_address"
+              - condition: template
+                value_template: "{{ knx_state_address != '' }}"
+            sequence:
+              - if:
+                  - condition: or
+                    conditions:
+                      - condition: state
+                        entity_id: !input media_player_entity
+                        state: "off"
+                      - condition: state
+                        entity_id: !input media_player_entity
+                        state: "unavailable"
+                      - condition: state
+                        entity_id: !input media_player_entity
+                        state: "unknown"
+                then:
+                  - service: knx.send
+                    data:
+                      address: "{{ knx_state_address }}"
+                      payload: 0
+                      response: true
+                else:
+                  - service: knx.send
+                    data:
+                      address: "{{ knx_state_address }}"
+                      payload: 1
+                      response: true
+
+    # STATE FEEDBACK
+    - conditions:
+        - condition: trigger
+          id: "media_player_entity"
+        - condition: template
+          value_template: "{{ media_player_entity != '' }}"
+      sequence:
+
+        # STATE change
+        - if:
+            - condition: template
+              value_template: "{{ trigger.to_state.state != trigger.from_state.state }}"
+            - condition: template
+              value_template: "{{ knx_state_address != '' }}"
+          then:
+            - choose :
+              - conditions:
+                  condition: template
+                  value_template: "{{ trigger.to_state.state == 'off' }}"
+                sequence:
+                  - service: knx.send
+                    data:
+                      address: "{{ knx_state_address }}"
+                      payload: 0
+              - conditions:
+                  condition: template
+                  value_template: "{{ trigger.to_state.state == 'on' }}"
+                sequence:
+                  - service: knx.send
+                    data:
+                      address: "{{ knx_state_address }}"
+                      payload: 1
