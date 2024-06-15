@@ -183,3 +183,26 @@ action:
                     data:
                       address: "{{ knx_state_address }}"
                       payload: 1
+
+        # ALWAYS SEND FEEDBACK ON STATE CHANGE
+        - if:
+            - condition: template
+              value_template: "{{ knx_state_address != '' }}"
+          then:
+            - choose :
+              - conditions:
+                  condition: template
+                  value_template: "{{ states(media_player_entity) == 'off' }}"
+                sequence:
+                  - service: knx.send
+                    data:
+                      address: "{{ knx_state_address }}"
+                      payload: 0
+              - conditions:
+                  condition: template
+                  value_template: "{{ states(media_player_entity) == 'on' }}"
+                sequence:
+                  - service: knx.send
+                    data:
+                      address: "{{ knx_state_address }}"
+                      payload: 1
