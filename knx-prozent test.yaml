@@ -1,17 +1,22 @@
 blueprint:
-  name: KNX - Media Player Volume Percentage Sender v2024.01.9
+  name: KNX - Media Player Volume Sync v2024.01.10
   description: |
-    This blueprint sends the volume level percentage from a selected media player entity to a specified KNX group address whenever the volume level changes. It uses KNX data type 5.001.
+    This blueprint syncs volume levels between a KNX group address and a Home Assistant media player. It sends the media player's volume level as a percentage to one KNX group address and updates the media player's volume level based on the percentage received from another KNX group address. It uses KNX data type 5.001.
   domain: automation
   input:
-    knx_address:
-      name: KNX Group Address
+    knx_send_address:
+      name: KNX Send Group Address
       description: The KNX group address to send the volume level percentage.
+      selector:
+        text:
+    knx_receive_address:
+      name: KNX Receive Group Address
+      description: The KNX group address to receive the volume level percentage.
       selector:
         text:
     media_player_entity:
       name: Media Player Entity
-      description: The media player entity to monitor for volume level changes.
+      description: The media player entity to sync volume levels with.
       selector:
         entity:
           domain: media_player
@@ -20,17 +25,39 @@ mode: parallel
 max_exceeded: silent
 
 variables:
-  knx_address: !input knx_address
+  knx_send_address: !input knx_send_address
+  knx_receive_address: !input knx_receive_address
   media_player_entity: !input media_player_entity
 
 trigger:
   - platform: state
     entity_id: !input media_player_entity
     attribute: volume_level
+  - platform: knx
+    address: !input knx_receive_address
 
 action:
-  - service: knx.send
-    data:
-      address: "{{ knx_address }}"
-      payload: "{{ (trigger.to_state.attributes.volume_level * 100) | int }}"
-      type: "percent"
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: "media_player_volume_change"
+        sequence:
+          - service: knx.send
+            data:
+              address: "{{ knx_send_address }}"
+              payload: "{{ (trigger.to_state.attributes.volume_level * 100) | int }}"
+              type: "percent"
+      - conditions:
+          - condition: trigger
+            id: "knx_volume_receive"
+        sequence:
+          - service: media_player.volume_set
+            target:
+              entity_id: "{{ media_player_entity }}"
+            data:
+              volume_level: "{{ trigger.payload | int / 100 }}"
+
+trigger_variables:
+  trigger:
+    id: "media_player_volume_change"
+    id: "knx_volume_receive"
