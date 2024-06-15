@@ -1,5 +1,5 @@
 blueprint:
-  name: KNX - Media Player Volume Control v2024.01.2
+  name: KNX - Media Player Volume Control v2024.01.5
   description: |
     Use KNX to control the volume of a Home Assistant media player entity with optional state feedback.
     This blueprint allows you to select which media player should be controlled and provides input fields for the KNX group addresses:
@@ -10,7 +10,7 @@ blueprint:
     - One address for volume level state feedback (0-100%).
     Each address has an option to invert the received/sent values.
 
-    **Version**: 2024.01.2
+    **Version**: 2024.01.5
   author: ChatGPT
   source_url: https://example.com
   domain: automation
@@ -105,6 +105,8 @@ variables:
   knx_mute_state_invert: !input knx_mute_state_invert
   knx_volume_level_address: !input knx_volume_level_address
   knx_volume_level_state_address: !input knx_volume_level_state_address
+  last_volume_level: none
+  last_mute_state: none
 
 trigger:
   - platform: homeassistant
@@ -160,7 +162,7 @@ trigger:
 
 action:
   - choose:
-    # INITIALIZE - Register KNX addresses
+    # INITIALIZE - Register KNX addresses and set initial state
     - conditions:
         - condition: trigger
           id: "initialize"
@@ -210,6 +212,15 @@ action:
                 - service: knx.event_register
                   data:
                     address: "{{ knx_volume_level_state_address }}"
+        # Set initial state
+        - service: input_boolean.turn_on
+          data:
+            entity_id: "{{ media_player_entity }}"
+          target:
+            entity_id: "{{ media_player_entity }}"
+        - variables:
+            last_volume_level: "{{ state_attr(media_player_entity, 'volume_level') }}"
+            last_mute_state: "{{ is_state_attr(media_player_entity, 'is_volume_muted', true) }}"
 
     # Handle KNX commands for volume step control
     - conditions:
@@ -298,10 +309,10 @@ action:
           target:
             entity_id: "{{ media_player_entity }}"
 
-    # Handle KNX mute state feedback
+    # Handle KNX mute state feedback with change detection
     - conditions:
         - condition: template
-          value_template: "{{ trigger.platform == 'state' and trigger.entity_id == media_player_entity }}"
+          value_template: "{{ trigger.platform == 'state' and trigger.entity_id == media_player_entity and (is_state_attr(media_player_entity, 'is_volume_muted', true) != last_mute_state) }}"
       sequence:
         - choose:
             # Send mute state feedback
@@ -324,6 +335,8 @@ action:
                               {% else %}
                                 1
                               {% endif %}
+                        - variables:
+                            last_mute_state: true
                     # Media Player is Unmuted
                     - conditions:
                         - condition: template
@@ -338,11 +351,13 @@ action:
                               {% else %}
                                 0
                               {% endif %}
+                        - variables:
+                            last_mute_state: false
 
-    # Handle KNX volume level state feedback
+    # Handle KNX volume level state feedback with change detection
     - conditions:
         - condition: template
-          value_template: "{{ trigger.platform == 'state' and trigger.entity_id == media_player_entity and trigger.to_state.attributes.volume_level != trigger.from_state.attributes.volume_level }}"
+          value_template: "{{ trigger.platform == 'state' and trigger.entity_id == media_player_entity and (state_attr(media_player_entity, 'volume_level') != last_volume_level) }}"
       sequence:
         - choose:
             # Send volume level state feedback
@@ -355,3 +370,5 @@ action:
                     address: "{{ knx_volume_level_state_address }}"
                     payload: >
                       {{ (state_attr(media_player_entity, 'volume_level') * 100) | int(default=0) }}
+                - variables:
+                    last_volume_level: "{{ state_attr(media_player_entity, 'volume_level') }}"
