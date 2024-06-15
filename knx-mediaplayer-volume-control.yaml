@@ -1,16 +1,14 @@
 blueprint:
-  name: KNX - Media Player Volume Control v2024.01.15
+  name: KNX - Media Player Volume Control v2024.01.16
   description: |
     Use KNX to control the volume of a Home Assistant media player entity with optional state feedback.
     This blueprint allows you to select which media player should be controlled and provides input fields for the KNX group addresses:
     - One address for stepwise volume control (0 for decrease, 1 for increase), with a slider to set the number of steps.
     - One address for mute control (0 for unmute, 1 for mute).
     - One address for mute state feedback (0 for unmute, 1 for mute).
-    - One address for setting the volume level (0-100%).
-    - One address for volume level state feedback (0-100%).
     Each address has an option to invert the received/sent values.
 
-    **Version**: 2024.01.15
+    **Version**: 2024.01.16
   author: ChatGPT
   source_url: https://example.com
   domain: automation
@@ -77,20 +75,6 @@ blueprint:
       selector:
         boolean:
 
-    knx_volume_level_address:
-      name: KNX Volume Level Group Address
-      description: >
-        Group address for setting the volume level (0-100%). DPT 5.001.
-        Example: '1/0/6' (leave empty if unused).
-      default: ""
-
-    knx_volume_level_state_address:
-      name: KNX Volume Level State Group Address
-      description: >
-        Group address to send feedback of the volume level (0-100%). DPT 5.001.
-        Example: '1/4/6' (leave empty if unused).
-      default: ""
-
 mode: parallel
 max_exceeded: silent
 
@@ -103,9 +87,6 @@ variables:
   knx_mute_invert: !input knx_mute_invert
   knx_mute_state_address: !input knx_mute_state_address
   knx_mute_state_invert: !input knx_mute_state_invert
-  knx_volume_level_address: !input knx_volume_level_address
-  knx_volume_level_state_address: !input knx_volume_level_state_address
-  last_volume_level: "{{ state_attr(media_player_entity, 'volume_level') | float }}"
   last_mute_state: "{{ is_state_attr(media_player_entity, 'is_volume_muted', true) }}"
 
 trigger:
@@ -141,24 +122,10 @@ trigger:
   - platform: event
     event_type: knx_event
     event_data:
-      destination: !input knx_volume_level_address
-      telegramtype: GroupValueWrite
-      direction: Incoming
-    id: "knx_volume_level_address"
-  - platform: event
-    event_type: knx_event
-    event_data:
       destination: !input knx_mute_state_address
       telegramtype: GroupValueRead
       direction: Incoming
     id: "knx_mute_state_address"
-  - platform: event
-    event_type: knx_event
-    event_data:
-      destination: !input knx_volume_level_state_address
-      telegramtype: GroupValueRead
-      direction: Incoming
-    id: "knx_volume_level_state_address"
 
 action:
   - choose:
@@ -194,27 +161,8 @@ action:
                 - service: knx.event_register
                   data:
                     address: "{{ knx_mute_state_address }}"
-        # Register KNX Volume Level Address
-        - choose:
-            - conditions:
-                - condition: template
-                  value_template: "{{ knx_volume_level_address != '' }}"
-              sequence:
-                - service: knx.event_register
-                  data:
-                    address: "{{ knx_volume_level_address }}"
-        # Register KNX Volume Level State Address
-        - choose:
-            - conditions:
-                - condition: template
-                  value_template: "{{ knx_volume_level_state_address != '' }}"
-              sequence:
-                - service: knx.event_register
-                  data:
-                    address: "{{ knx_volume_level_state_address }}"
         # Set initial state
         - variables:
-            last_volume_level: "{{ state_attr(media_player_entity, 'volume_level') | float }}"
             last_mute_state: "{{ is_state_attr(media_player_entity, 'is_volume_muted', true) }}"
 
     # Handle KNX commands for volume step control
@@ -293,17 +241,6 @@ action:
                   target:
                     entity_id: "{{ media_player_entity }}"
 
-    # Handle KNX commands for volume level control
-    - conditions:
-        - condition: template
-          value_template: "{{ trigger.platform == 'event' and trigger.event.event_type == 'knx_event' and trigger.event.data.direction == 'Incoming' and trigger.event.data.destination == knx_volume_level_address }}"
-      sequence:
-        - service: media_player.volume_set
-          data:
-            volume_level: "{{ trigger.event.data.data | float(default=0) / 100 }}"
-          target:
-            entity_id: "{{ media_player_entity }}"
-
     # Handle KNX mute state feedback with change detection
     - conditions:
         - condition: template
@@ -350,23 +287,3 @@ action:
                             type: "1.001"
                         - variables:
                             last_mute_state: false
-
-    # Handle KNX volume level state feedback with change detection
-    - conditions:
-        - condition: template
-          value_template: "{{ trigger.platform == 'state' and trigger.entity_id == media_player_entity }}"
-      sequence:
-        - choose:
-            # Send volume level state feedback only if the state has changed
-            - conditions:
-                - condition: template
-                  value_template: "{{ knx_volume_level_state_address != '' and (state_attr(media_player_entity, 'volume_level') | float(default=0)) != (last_volume_level | float(default=0)) }}"
-              sequence:
-                - service: knx.send
-                  data:
-                    address: "{{ knx_volume_level_state_address }}"
-                    payload: >
-                      {{ (state_attr(media_player_entity, 'volume_level') * 100) | int(default=0) }}
-                    type: "5.001"
-                - variables:
-                    last_volume_level: "{{ state_attr(media_player_entity, 'volume_level') | float }}"
