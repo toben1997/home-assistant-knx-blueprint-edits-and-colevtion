@@ -2,7 +2,7 @@ blueprint:
   name: KNX - Media Player Control
   description: >
     Use KNX to control a Home Assistant media player entity with state feedback
-    **Version**: 2024.01.2
+    **Version**: 2024.01.3
   author: kalhimeo
   domain: automation
   input:
