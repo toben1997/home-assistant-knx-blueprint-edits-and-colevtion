@@ -177,7 +177,7 @@ action:
                       payload: 0
               - conditions:
                   condition: template
-                  value_template: "{{ trigger.to_state.state == 'on' }}"
+                  value_template: "{{ trigger.to_state.state in ['on', 'idle', 'playing', 'paused'] }}"
                 sequence:
                   - service: knx.send
                     data:
@@ -199,7 +199,7 @@ action:
                     payload: 0
             - conditions:
                 condition: template
-                value_template: "{{ is_state(media_player_entity, 'on') }}"
+                value_template: "{{ is_state(media_player_entity, 'on') or is_state(media_player_entity, 'idle') or is_state(media_player_entity, 'playing') or is_state(media_player_entity, 'paused') }}"
               sequence:
                 - service: knx.send
                   data:
