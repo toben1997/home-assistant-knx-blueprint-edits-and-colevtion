@@ -229,20 +229,20 @@ action:
 
     # Handle KNX play/pause state feedback
     - conditions:
-        condition: template
-        value_template: "{{ trigger is defined and trigger.platform == 'state' and trigger.entity_id == media_player_entity }}"
+        - condition: template
+          value_template: "{{ trigger is defined and trigger.platform == 'state' and trigger.entity_id == media_player_entity }}"
       sequence:
         - choose:
             # Send state feedback when media player state changes
             - conditions:
-                condition: template
-                value_template: "{{ knx_play_pause_state_address != '' }}"
+                - condition: template
+                  value_template: "{{ knx_play_pause_state_address != '' }}"
               sequence:
                 - choose:
                     # Media Player is Paused
                     - conditions:
-                        condition: template
-                        value_template: "{{ trigger.to_state.state == 'paused' }}"
+                        - condition: template
+                          value_template: "{{ trigger.to_state.state == 'paused' }}"
                       sequence:
                         - service: knx.send
                           data:
@@ -255,8 +255,8 @@ action:
                               {% endif %}
                     # Media Player is Playing
                     - conditions:
-                        condition: template
-                        value_template: "{{ trigger.to_state.state == 'playing' }}"
+                        - condition: template
+                          value_template: "{{ trigger.to_state.state == 'playing' }}"
                       sequence:
                         - service: knx.send
                           data:
@@ -278,8 +278,8 @@ action:
             - choose:
                 # Media Player is Paused
                 - conditions:
-                    condition: template
-                    value_template: "{{ is_state(media_player_entity, 'paused') }}"
+                    - condition: template
+                      value_template: "{{ is_state(media_player_entity, 'paused') }}"
                   sequence:
                     - service: knx.send
                       data:
@@ -292,8 +292,8 @@ action:
                           {% endif %}
                 # Media Player is Playing
                 - conditions:
-                    condition: template
-                    value_template: "{{ is_state(media_player_entity, 'playing') }}"
+                    - condition: template
+                      value_template: "{{ is_state(media_player_entity, 'playing') }}"
                   sequence:
                     - service: knx.send
                       data:
