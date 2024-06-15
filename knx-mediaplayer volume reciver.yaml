@@ -1,0 +1,35 @@
+blueprint:
+  name: KNX - Media Player Volume Receiver v2024.01.1
+  description: |
+    This blueprint sets the volume level of a selected media player entity based on the percentage received from a specified KNX group address. It uses KNX data type 5.001.
+  domain: automation
+  input:
+    knx_address:
+      name: KNX Group Address
+      description: The KNX group address to receive the volume level percentage.
+      selector:
+        text:
+    media_player_entity:
+      name: Media Player Entity
+      description: The media player entity to set the volume level.
+      selector:
+        entity:
+          domain: media_player
+
+mode: parallel
+max_exceeded: silent
+
+variables:
+  knx_address: !input knx_address
+  media_player_entity: !input media_player_entity
+
+trigger:
+  - platform: knx
+    address: !input knx_address
+
+action:
+  - service: media_player.volume_set
+    target:
+      entity_id: "{{ media_player_entity }}"
+    data:
+      volume_level: "{{ trigger.event.data.payload | int / 100 }}"
