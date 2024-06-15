@@ -1,5 +1,5 @@
 blueprint:
-  name: KNX - Media Player Volume Sync v2024.01.10
+  name: KNX - Media Player Volume Sync v2024.01.11
   description: |
     This blueprint syncs volume levels between a KNX group address and a Home Assistant media player. It sends the media player's volume level as a percentage to one KNX group address and updates the media player's volume level based on the percentage received from another KNX group address. It uses KNX data type 5.001.
   domain: automation
@@ -33,14 +33,16 @@ trigger:
   - platform: state
     entity_id: !input media_player_entity
     attribute: volume_level
-  - platform: knx
-    address: !input knx_receive_address
+  - platform: event
+    event_type: knx_event
+    event_data:
+      address: !input knx_receive_address
 
 action:
   - choose:
       - conditions:
-          - condition: trigger
-            id: "media_player_volume_change"
+          - condition: template
+            value_template: "{{ trigger.platform == 'state' }}"
         sequence:
           - service: knx.send
             data:
@@ -48,16 +50,11 @@ action:
               payload: "{{ (trigger.to_state.attributes.volume_level * 100) | int }}"
               type: "percent"
       - conditions:
-          - condition: trigger
-            id: "knx_volume_receive"
+          - condition: template
+            value_template: "{{ trigger.platform == 'event' }}"
         sequence:
           - service: media_player.volume_set
             target:
               entity_id: "{{ media_player_entity }}"
             data:
-              volume_level: "{{ trigger.payload | int / 100 }}"
-
-trigger_variables:
-  trigger:
-    id: "media_player_volume_change"
-    id: "knx_volume_receive"
+              volume_level: "{{ trigger.event.data.payload | int / 100 }}"
